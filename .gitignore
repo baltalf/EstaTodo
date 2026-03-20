@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Node
+node_modules/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# DB
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Storage
+backend/storage/clips/*.mp4
+
+# Dataset (grande, descargar aparte)
+Construction-Site-Safety-27/
+
+# Model weights (grandes)
+# edge/models/*.pt

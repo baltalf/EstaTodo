@@ -1,0 +1,26 @@
+﻿# SafeGuard Frontend
+
+## Stack fijo
+React 18 + Vite + Tailwind CSS + Zustand + React Router v6 + lucide-react
+
+## Diseño
+- Tema OSCURO obligatorio (monitores de control industrial)
+- Rojo #ef4444 para eventos criticos
+- Amarillo #f59e0b para advertencias
+- Verde #22c55e para confirmado en blockchain
+- Fuente monospace para hashes SHA-256 y tx hashes
+
+## Paginas
+1. / — Dashboard: feed video en vivo (izquierda) + lista eventos tiempo real (derecha)
+2. /events/:id — Detalle: clip de video + hash SHA256 + tx Polygon + boton Verificar
+
+## WebSocket
+- Conectar a ws://localhost:8000/ws/stream
+- Cada mensaje JSON es un nuevo evento
+- Agregar al Zustand store y mostrar toast
+
+## Componentes
+- EventCard — tipo, camara, hora, badge blockchain_status
+- LiveFeed — canvas con bounding boxes overlay
+- HashDisplay — hash truncado + boton copy + link explorer
+- StatusBadge — colores segun pending/confirmed/failed

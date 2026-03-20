@@ -1,0 +1,51 @@
+﻿# SafeGuard AI — Contexto para el Agente
+
+## Stack FIJO
+- Python 3.11+ para backend y vision
+- FastAPI (no Flask, no Django)
+- YOLOv8 via ultralytics
+- React 18 + Vite + Tailwind + shadcn/ui
+- Zustand para estado global
+- Web3.py para blockchain (Polygon Amoy Testnet)
+- SQLite para dev, SQLAlchemy como ORM
+- WebSockets nativos de FastAPI
+
+## Módulos principales
+
+### backend/vision/
+- detector.py — YOLOv8, inferencia frame a frame desde webcam/RTSP
+- event_detector.py — lógica de negocio: qué es un "evento"
+- clip_extractor.py — buffer circular, extrae clip de N segundos
+- hasher.py — SHA-256 del clip, devuelve hex string
+
+### backend/blockchain/
+- polygon_client.py — Web3 a Polygon Amoy via RPC
+- registry.py — register_event(hash, timestamp, event_type, camera_id)
+
+### backend/api/
+- events.py — GET /events, GET /events/{id}, POST /events/verify
+- stream.py — WebSocket /ws/stream
+- cameras.py — CRUD de cámaras
+
+### frontend/src/
+- pages/Dashboard.jsx — feed en vivo + lista de eventos
+- pages/EventDetail.jsx — clip + hash + tx blockchain
+- components/EventCard.jsx — tarjeta de evento
+- components/LiveFeed.jsx — video con bounding boxes
+- hooks/useEventStream.js — WebSocket hook
+- store/eventsStore.js — Zustand store
+
+## Tipos de eventos
+FALL, NO_HELMET, NO_VEST, UNAUTHORIZED_ACCESS, CLOCK_IN, CLOCK_OUT
+
+## Modelo Event
+id, type, camera_id, timestamp, clip_path, hash_sha256,
+blockchain_tx, blockchain_status (pending/confirmed/failed),
+confidence, metadata
+
+## Prioridad hackathon
+1. vision/detector.py funcionando desde webcam
+2. api/stream.py emitiendo eventos por WebSocket
+3. Dashboard recibiendo eventos en tiempo real
+4. blockchain/polygon_client.py registrando hashes
+5. EventDetail con verificacion de integridad
