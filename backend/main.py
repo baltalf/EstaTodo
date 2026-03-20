@@ -8,6 +8,8 @@ from api import events, stream, cameras, module
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    from api.stream import start_broadcast_task
+    start_broadcast_task()
     yield
 
 app = FastAPI(

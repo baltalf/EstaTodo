@@ -28,6 +28,13 @@ logger = logging.getLogger(__name__)
 
 PERSON_CLASS_ID = 0
 
+LABEL_TO_EVENT = {
+    "fall": "FALL",
+    "no_helmet": "NO_HELMET", 
+    "no_vest": "NO_VEST",
+    "person": "FALL",  # temporal para testing con video genérico
+}
+
 class VisionDetector:
     def __init__(self, source: str, on_event: Callable, get_module: Optional[Callable[[], str]] = None):
         self.source = source
@@ -38,16 +45,26 @@ class VisionDetector:
         self.clip_extractor: Optional[ClipExtractor] = None
         self.running = False
         self.camera_id = str(source)
-        self.frame_buffer: deque[tuple[datetime, Any]] = deque(maxlen=300)  # ~10s @ 30fps
+        self.frame_buffer: deque[tuple[datetime, Any]] = deque(
+            maxlen=settings.CLIP_BUFFER_FRAMES
+        )
         self._capture: Optional[cv2.VideoCapture] = None
+        self._last_event_ts: dict[str, datetime] = {}
+        self.cooldown_seconds = 10.0
 
     def load_model(self):
         """Cargar YOLOv8 guardchain.pt (person, truck, PPE)."""
-        model_path = settings.GUARDCHAIN_MODEL_PATH
-        logger.info("Cargando modelo YOLOv8: %s", model_path)
-        self.model = YOLO(model_path)
+        model_path = getattr(settings, "MODEL_PATH", "edge/models/guardchain.pt")
+        logger.info("[INFO] Cargando modelo: %s", model_path)
+        try:
+            self.model = YOLO(model_path)
+        except Exception as e:
+            fallback_path = "yolov8n.pt"
+            logger.warning("[WARNING] No se pudo cargar %s, usando %s como fallback. Error: %s", model_path, fallback_path, e)
+            self.model = YOLO(fallback_path)
+            
         self.event_detector = EventDetector(self.model.names)
-        self.clip_extractor = ClipExtractor(self.frame_buffer, clip_seconds=10.0)
+        self.clip_extractor = ClipExtractor(self.frame_buffer)
 
     async def run(self):
         """Captura desde webcam/RTSP y ejecuta inferencia frame a frame."""
@@ -76,12 +93,23 @@ class VisionDetector:
 
         logger.info("VisionDetector: captura iniciada desde %s", self.source)
         try:
+            frames_processed = 0
             while self.running:
                 ret, frame = cap.read()
                 if not ret:
-                    logger.warning("VisionDetector: no se pudo leer frame (ret=False). Reintentando...")
-                    time.sleep(0.1)
-                    continue
+                    if settings.LOOP_VIDEO:
+                        logger.info("VisionDetector: Video finalizado, reiniciando...")
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        continue
+                    else:
+                        logger.info("VisionDetector: Video finalizado")
+                        self.stop()
+                        break
+
+                frames_processed += 1
+                if frames_processed % 100 == 0:
+                    logger.info(f"[INFO] Procesados {frames_processed} frames, sin eventos aún")
+
 
                 ts = datetime.utcnow()
                 # Guardar copia para no pisar memoria interna del buffer.
@@ -89,12 +117,33 @@ class VisionDetector:
 
                 results = self.model(frame, verbose=False)
                 dets = _yolo_results_to_detections(results, self.model.names)
-                module = self.get_module()
+                
+                # Log detection visible
+                event_info = None
+                for det in dets:
+                    conf = det['confidence']
+                    cls_name = det['class_name']
+                    if conf >= getattr(settings, "CONFIDENCE_THRESHOLD", 0.50):
+                        label_norm = cls_name.lower().strip()
+                        if label_norm in LABEL_TO_EVENT:
+                            ev_type = LABEL_TO_EVENT[label_norm]
+                            logger.info(f"[DETECCIÓN] tipo={cls_name} confianza={conf:.2f} → mapeado a {ev_type} camara={self.camera_id}")
+                            
+                            # Comprobar cooldown
+                            last_ts = self._last_event_ts.get(ev_type)
+                            if last_ts is None or (ts - last_ts).total_seconds() >= self.cooldown_seconds:
+                                self._last_event_ts[ev_type] = ts
+                                event_info = {
+                                    "type": ev_type,
+                                    "confidence": conf,
+                                    "metadata": {"bbox": det.get("bbox_xyxy")}
+                                }
+                                break # Solo 1 evento extraido por frame para simplificar
 
-                event_info = self.event_detector.analyze(dets, ts, module=module)
                 if event_info is None:
                     continue
 
+                logger.info("[INFO] Enviando evento al backend...")
                 clip_path = self.clip_extractor.extract(
                     event_timestamp=ts,
                     event_type=event_info["type"],
@@ -102,7 +151,7 @@ class VisionDetector:
                 )
                 from .hasher import hash_file
 
-                hash_sha256 = hash_file(clip_path)
+                hash_sha256 = hash_file(clip_path) if clip_path else ""
                 payload = {
                     "type": event_info["type"],
                     "camera_id": self.camera_id,
@@ -111,7 +160,7 @@ class VisionDetector:
                     "hash_sha256": hash_sha256,
                     "confidence": float(event_info.get("confidence", 0.0)),
                     "metadata": event_info.get("metadata", {}),
-                    "module": module,
+                    "module": self.get_module(),
                 }
 
                 try:

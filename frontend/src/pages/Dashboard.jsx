@@ -11,7 +11,8 @@ export function Dashboard() {
   useEventStream();
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/module/')
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    fetch(`${apiUrl}/api/module/`)
       .then((r) => r.json())
       .then((d) => d.module && useAppStore.getState().setModule(d.module))
       .catch(() => {});

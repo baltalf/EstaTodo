@@ -32,8 +32,11 @@ node_modules/
 *.swp
 *.swo
 
-# Storage
-backend/storage/clips/*.mp4
+# Storage (mantener .gitkeep)
+backend/storage/clips/*
+!backend/storage/clips/.gitkeep
+backend/storage/frames/*
+!backend/storage/frames/.gitkeep
 
 # Dataset (grande, descargar aparte)
 Construction-Site-Safety-27/

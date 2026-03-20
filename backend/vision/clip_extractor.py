@@ -1,8 +1,6 @@
 """
 Extrae un clip .mp4 del buffer circular de frames alrededor de un evento.
-
-Para el Día 1:
-- Guardamos los últimos `clip_seconds` segundos ante el timestamp del evento.
+Extrae también key frames para Genlayer.
 """
 
 from __future__ import annotations
@@ -17,15 +15,57 @@ import cv2
 from core.config import settings
 
 
+def extract_key_frames(clip_path: str, event_id: str, n: int | None = None) -> list[str]:
+    """
+    Extrae n frames distribuidos uniformemente del clip y los guarda como JPEG.
+    Retorna la lista de paths de los frames.
+    """
+    n = n if n is not None else settings.KEY_FRAMES_COUNT
+    cap = cv2.VideoCapture(clip_path)
+    if not cap.isOpened():
+        return []
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames <= 0:
+        cap.release()
+        return []
+
+    out_dir = Path(settings.FRAMES_PATH) / str(event_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    indices = (
+        [0]
+        if total_frames == 1
+        else [int(i * (total_frames - 1) / (n - 1)) for i in range(n)]
+        if n > 1
+        else [total_frames // 2]
+    )
+    paths: list[str] = []
+
+    for i, frame_idx in enumerate(indices):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        out_path = out_dir / f"frame_{i}.jpg"
+        cv2.imwrite(str(out_path), frame)
+        paths.append(str(out_path))
+
+    cap.release()
+    return paths
+
+
 class ClipExtractor:
     def __init__(
         self,
         frame_buffer: Deque[Tuple[datetime, "cv2.Mat"]],
         *,
-        clip_seconds: float = 10.0,
+        clip_seconds: float | int | None = None,
     ) -> None:
         self.frame_buffer = frame_buffer
-        self.clip_seconds = float(clip_seconds)
+        self.clip_seconds = float(
+            clip_seconds if clip_seconds is not None else settings.CLIP_SECONDS
+        )
         self._fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
     def extract(
@@ -58,11 +98,12 @@ class ClipExtractor:
             fps = float(max(5.0, min(60.0, fps)))
 
         # Asegurar directorio de salida.
-        storage_dir = Path(settings.CLIP_STORAGE_PATH)
+        storage_dir = Path(settings.CLIPS_PATH)
         storage_dir.mkdir(parents=True, exist_ok=True)
 
+        import re
         ts_str = event_timestamp.strftime("%Y%m%d_%H%M%S")
-        safe_camera_id = str(camera_id).replace(":", "_").replace("/", "_")
+        safe_camera_id = re.sub(r'[^\w\-]', '_', str(camera_id))[:30]
         filename = f"{safe_camera_id}_{event_type}_{ts_str}.mp4"
         out_path = storage_dir / filename
 
