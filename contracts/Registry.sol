@@ -10,6 +10,8 @@ contract Registry {
         uint256 timestamp;
         string hashSha256;
         string eventType;
+        string ipfsCid;
+        string description;
     }
 
     mapping(string => EventData) private eventsByHash;
@@ -18,7 +20,8 @@ contract Registry {
         string cameraId,
         uint256 timestamp,
         string hashSha256,
-        string eventType
+        string eventType,
+        string ipfsCid
     );
 
     modifier onlyOwner() {
@@ -48,7 +51,9 @@ contract Registry {
         string memory cameraId,
         uint256 timestamp,
         string memory hashSha256,
-        string memory eventType
+        string memory eventType,
+        string memory ipfsCid,
+        string memory description
     ) public onlyAllowlist {
         require(bytes(hashSha256).length > 0, "Hash cannot be empty");
         require(bytes(eventsByHash[hashSha256].hashSha256).length == 0, "Event already exists");
@@ -57,10 +62,12 @@ contract Registry {
             cameraId: cameraId,
             timestamp: timestamp,
             hashSha256: hashSha256,
-            eventType: eventType
+            eventType: eventType,
+            ipfsCid: ipfsCid,
+            description: description
         });
 
-        emit LogEvent(cameraId, timestamp, hashSha256, eventType);
+        emit LogEvent(cameraId, timestamp, hashSha256, eventType, ipfsCid);
     }
 
     function verify(string memory hashSha256) public view returns (bool) {
@@ -74,11 +81,13 @@ contract Registry {
             string memory,
             uint256,
             string memory,
+            string memory,
+            string memory,
             string memory
         )
     {
         require(verify(hashSha256), "Event not found");
         EventData memory e = eventsByHash[hashSha256];
-        return (e.cameraId, e.timestamp, e.hashSha256, e.eventType);
+        return (e.cameraId, e.timestamp, e.hashSha256, e.eventType, e.ipfsCid, e.description);
     }
 }

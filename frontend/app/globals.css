@@ -1,0 +1,198 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --bg-primary:    #0F172A;
+  --bg-surface:    #1E293B;
+  --bg-elevated:   #263548;
+  --border:        #334155;
+  --border-strong: #475569;
+  --brand-blue:    #2563EB;
+  --cyber-teal:    #06B6D4;
+  --success:       #10B981;
+  --warning:       #F59E0B;
+  --danger:        #EF4444;
+  --text-primary:  #F1F5F9;
+  --text-secondary:#94A3B8;
+  --text-muted:    #64748B;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Monospace utility */
+.font-mono { font-family: 'IBM Plex Mono', monospace; }
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.badge-green  { background: #052e16; color: var(--success); border: 1px solid #10b98133; }
+.badge-red    { background: #450a0a; color: var(--danger); border: 1px solid #ef444433; }
+.badge-amber  { background: #451a03; color: var(--warning); border: 1px solid #f59e0b33; }
+.badge-blue   { background: #0c1a35; color: var(--cyber-teal); border: 1px solid #06B6D433; }
+.badge-gray   { background: var(--bg-surface); color: var(--text-muted); border: 1px solid #33415533; }
+
+/* Table styles */
+.sg-table { width: 100%; border-collapse: collapse; }
+.sg-table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-secondary); border-bottom: 1px solid var(--border);
+}
+.sg-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary); font-size: 13px;
+}
+.sg-table tr:last-child td { border-bottom: none; }
+.sg-table tr:hover td { background: var(--bg-surface); }
+
+/* Card */
+.sg-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Input */
+.sg-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sg-input:focus { border-color: var(--brand-blue); }
+
+/* Button */
+.sg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 16px; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.sg-btn-primary   { background: var(--brand-blue); color: var(--text-primary); }
+.sg-btn-primary:hover { filter: brightness(1.1); transform: scale(1.02); }
+
+.sg-btn-web3 { background: var(--cyber-teal); color: var(--bg-primary); font-weight: 600; transition: all 0.2s; }
+.sg-btn-web3:hover { background: #0891B2; transform: scale(1.02); }
+
+.sg-btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border); }
+.sg-btn-secondary:hover { background: var(--bg-elevated); }
+
+.sg-btn-danger    { background: #450a0a; color: var(--danger); border-color: #7f1d1d; }
+.sg-btn-danger:hover { background: #7f1d1d; }
+
+.sg-btn-ghost     { background: transparent; color: var(--text-secondary); border-color: transparent; }
+.sg-btn-ghost:hover { color: var(--text-primary); background: var(--bg-surface); }
+
+/* Leaflet container fix */
+.leaflet-container {
+  background: var(--bg-primary) !important;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.leaflet-popup-content-wrapper {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+}
+.leaflet-popup-tip { background: var(--bg-surface) !important; }
+.leaflet-control-zoom {
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+}
+.leaflet-control-zoom a {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Pulse animation for WS dots */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+/* Custom Form elements for Register */
+.sg-input-lg {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-family: var(--font-inter), sans-serif;
+  outline: none;
+  transition: all 0.2s;
+}
+.sg-input-lg:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 1px var(--brand-blue);
+}
+
+/* Landing Page Animations */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: fadeSlideUp 0.6s ease-out forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+
+/* Interactive elements */
+.hover-card {
+  transition: all 0.3s ease;
+}
+.hover-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--brand-blue);
+}
+
+.hover-btn {
+  transition: all 0.2s ease;
+}
+.hover-btn:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}

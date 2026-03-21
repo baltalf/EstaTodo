@@ -1,6 +1,6 @@
 {
-  "registry_address": "0x4Ac1d98D9cEF99EC6546dEd4Bd550b0b287aaD6D",
-  "deployed_at": "2026-03-20T20:19:11.819898",
+  "registry_address": "0xDD0152DCaC7AF7d31DE95Ccf7D33080a387163a3",
+  "deployed_at": "2026-03-21T00:07:26.094251",
   "chain_id": 99372,
   "rpc_url": "http://127.0.0.1:9654/ext/bc/CCNsNWWd9riq2LGv3BTQJmk6WjmkFQ3eKY7z8JhfjzSGY1A6e/rpc",
   "abi": [
@@ -34,6 +34,12 @@
           "indexed": false,
           "internalType": "string",
           "name": "eventType",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "ipfsCid",
           "type": "string"
         }
       ],
@@ -101,6 +107,16 @@
           "internalType": "string",
           "name": "",
           "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
         }
       ],
       "stateMutability": "view",
@@ -152,6 +168,16 @@
         {
           "internalType": "string",
           "name": "eventType",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "ipfsCid",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "description",
           "type": "string"
         }
       ],

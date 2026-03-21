@@ -7,20 +7,24 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from api.stream import handle_event
+from api.stream import handle_event, _to_ws_payload
 from db.database import async_session_maker
 from db.models import Event
 from blockchain.avalanche_client import avalanche_client
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class DisputeResponse(BaseModel):
     event_id: str
-    hash_sha256: str
+    hash_sha256: str | None
     blockchain_tx: str | None
-    frame_urls: list[str]
     genlayer_verdict: str
     dispute_status: str
-
-router = APIRouter()
+    incident_description: str | None = None
+    ipfs_cid: str | None = None
+    ipfs_url: str | None = None
 
 
 class EventIngest(BaseModel):
@@ -31,7 +35,11 @@ class EventIngest(BaseModel):
     hash_sha256: str | None = None
     confidence: float = 0.0
     metadata: dict[str, Any] = Field(default_factory=dict)
-    module: str = "FACTORY"
+    module: str = "CARGO"
+    incident_description: str | None = None
+
+
+router = APIRouter()
 
 
 @router.post("/ingest")
@@ -41,6 +49,8 @@ async def ingest_event(body: EventIngest) -> dict[str, Any]:
     return {
         "id": ev.id,
         "hash_sha256": ev.hash_sha256,
+        "ipfs_cid": ev.ipfs_cid,
+        "ipfs_url": ev.ipfs_url,
         "key_frames": (ev.event_metadata or {}).get("key_frames", []),
     }
 
@@ -50,15 +60,18 @@ async def list_events() -> list[dict[str, Any]]:
     async with async_session_maker() as session:
         result = await session.execute(select(Event).order_by(Event.timestamp.desc()).limit(100))
         events = result.scalars().all()
-        import logging
-        logging.getLogger(__name__).info(f"[INFO] Consultando eventos, total={len(events)}")
-        from api.stream import _to_ws_payload
+        logger.info(f"[INFO] Consultando eventos, total={len(events)}")
         return [_to_ws_payload(ev) for ev in events]
 
 
 @router.get("/{event_id}")
 async def get_event(event_id: str) -> dict[str, Any]:
-    return {"id": event_id}
+    async with async_session_maker() as session:
+        result = await session.execute(select(Event).where(Event.id == event_id))
+        ev = result.scalar_one_or_none()
+        if not ev:
+            raise HTTPException(status_code=404, detail="Event not found")
+        return _to_ws_payload(ev)
 
 
 @router.get("/{event_id}/verify")
@@ -68,72 +81,143 @@ async def verify_event_endpoint(event_id: str) -> dict[str, Any]:
         ev = result.scalar_one_or_none()
         if not ev:
             raise HTTPException(status_code=404, detail="Event not found")
-        
+
         verified = False
         if ev.hash_sha256:
             verified = await avalanche_client.verify_hash(ev.hash_sha256)
-            
+
         return {
             "event_id": str(ev.id),
             "hash_sha256": str(ev.hash_sha256),
             "blockchain_tx": str(ev.blockchain_tx) if ev.blockchain_tx else None,
             "verified": verified,
-            "blockchain_status": str(ev.blockchain_status) if ev.blockchain_status else None
+            "blockchain_status": str(ev.blockchain_status) if ev.blockchain_status else None,
         }
 
 
 @router.post("/{event_id}/dispute", response_model=DisputeResponse)
 async def create_dispute(event_id: str) -> DisputeResponse:
-    import logging
-    logger = logging.getLogger(__name__)
     logger.info(f"[INFO] Iniciando disputa para evento {event_id}")
-    
+
     async with async_session_maker() as session:
         result = await session.execute(select(Event).where(Event.id == event_id))
         ev = result.scalar_one_or_none()
         if not ev:
             raise HTTPException(status_code=404, detail="Event not found")
-            
-        if not ev.hash_sha256 or not ev.clip_path:
-            raise HTTPException(status_code=400, detail="Event missing hash or clip")
-            
-        key_frames = (ev.event_metadata or {}).get("key_frames", [])
-        if not key_frames:
-            raise HTTPException(status_code=400, detail="No key frames available")
-            
-        from integrations.ipfs_client import pinata_client
-        logger.info(f"[INFO] Subiendo {len(key_frames)} frames a IPFS...")
-        if pinata_client.is_configured():
-            frame_urls = await pinata_client.upload_files(key_frames)
-        else:
-            frame_urls = [f"local://{p}" for p in key_frames]
-            
-        logger.info(f"[INFO] Frames subidos: {frame_urls}")
-            
+
+        if not ev.hash_sha256:
+            raise HTTPException(status_code=400, detail="Event missing hash — cannot dispute")
+
+        # Use stored incident_description or generate a descriptive fallback
+        description = ev.incident_description
+        if not description:
+            ts_str = ev.timestamp.strftime("%Y-%m-%d %H:%M") if ev.timestamp else "desconocido"
+            description = (
+                f"Se detectó un evento de tipo {ev.type} en la cámara {ev.camera_id}. "
+                f"El sistema de visión artificial identificó la amenaza con una confianza del "
+                f"{(ev.confidence or 0) * 100:.0f}%. "
+                f"El evento ocurrió el {ts_str} durante un viaje en curso. "
+                f"Nivel de riesgo estimado: {'ALTO' if (ev.confidence or 0) > 0.7 else 'MEDIO'}."
+            )
+            if ev.ipfs_cid:
+                description += f" Video en IPFS: ipfs://{ev.ipfs_cid}"
+
         from integrations.genlayer_client import genlayer_client
-        logger.info("[INFO] Solicitando veredicto a Genlayer...")
-        
+        logger.info("[INFO] Solicitando veredicto a Genlayer (via descripción textual + CID)...")
+
         verdict = await genlayer_client.request_verdict(
             hash_sha256=ev.hash_sha256,
-            frame_urls=frame_urls,
+            incident_description=description,
             event_type=ev.type,
-            context=f"Módulo: {ev.module}, Timestamp: {ev.timestamp}"
+            ipfs_cid=ev.ipfs_cid or "",
         )
-        
+
         logger.info(f"[INFO] Veredicto recibido: {verdict}")
-        logger.info(f"[INFO] Disputa resuelta: {event_id} → {verdict}")
-        
+
         ev.genlayer_verdict = verdict
         session.add(ev)
         await session.commit()
         await session.refresh(ev)
-        
+
         return DisputeResponse(
             event_id=str(ev.id),
             hash_sha256=str(ev.hash_sha256),
             blockchain_tx=str(ev.blockchain_tx) if ev.blockchain_tx else None,
-            frame_urls=frame_urls,
             genlayer_verdict=verdict,
-            dispute_status="resolved"
+            dispute_status="resolved",
+            incident_description=description,
+            ipfs_cid=ev.ipfs_cid,
+            ipfs_url=ev.ipfs_url,
         )
 
+
+@router.get("/cameras/{camera_id}/stream")
+async def camera_stream_placeholder(camera_id: str):
+    """"Placeholder — MJPEG stream will be implemented when cameras are connected."""
+    raise HTTPException(
+        status_code=404,
+        detail=f"Stream no disponible para {camera_id} — cámara fuera de cobertura",
+    )
+
+
+@router.post("/demo/seed")
+async def seed_demo_endpoint() -> dict[str, Any]:
+    import hashlib
+    from datetime import timedelta
+    from db.models import BlockchainStatus
+
+    demo_events = [
+        Event(
+            id="demo-robo-001",
+            type="FALL",
+            camera_id="CAM-TRK-01",
+            timestamp=datetime.utcnow() - timedelta(hours=2),
+            hash_sha256=hashlib.sha256(b"demo-robo-001").hexdigest(),
+            blockchain_tx="0x" + "a3f8b2c1d4e5f6789012345678901234567890ab",
+            blockchain_status=BlockchainStatus.CONFIRMED,
+            genlayer_verdict="ROBO_CONFIRMADO",
+            incident_description="Operario detectado manipulando pallets sin autorización dentro del trailer. Movimiento sospechoso hacia la salida trasera. Confianza: 89%.",
+            module="CARGO",
+            ipfs_cid="QmQdEmYyzTSx7akqhKAjhQKYpzoCicg682LWMF5U4f4Vnw",
+            ipfs_url="https://gateway.pinata.cloud/ipfs/QmQdEmYyzTSx7akqhKAjhQKYpzoCicg682LWMF5U4f4Vnw",
+        ),
+        Event(
+            id="demo-normal-002",
+            type="FALL",
+            camera_id="CAM-TRK-02",
+            timestamp=datetime.utcnow() - timedelta(hours=1),
+            hash_sha256=hashlib.sha256(b"demo-normal-002").hexdigest(),
+            blockchain_tx="0x" + "b4c9d3e2f1a0789012345678901234567890cd",
+            blockchain_status=BlockchainStatus.CONFIRMED,
+            genlayer_verdict="FALSA_ALARMA",
+            incident_description="Operario realizando revisión autorizada de inventario. Sin irregularidades.",
+            module="CARGO",
+            ipfs_cid="Qmd64GPr5qub8nJsZwu6nshLiecGD55xjUj5J7L5u6NW9A",
+            ipfs_url="https://gateway.pinata.cloud/ipfs/Qmd64GPr5qub8nJsZwu6nshLiecGD55xjUj5J7L5u6NW9A",
+        ),
+        Event(
+            id="demo-inconcluso-003",
+            type="FALL",
+            camera_id="CAM-TRK-03",
+            timestamp=datetime.utcnow() - timedelta(minutes=30),
+            hash_sha256=hashlib.sha256(b"demo-inconcluso-003").hexdigest(),
+            blockchain_tx="0x" + "c5d0e4f3a2b1789012345678901234567890ef",
+            blockchain_status=BlockchainStatus.CONFIRMED,
+            genlayer_verdict=None,
+            incident_description="Movimiento detectado en zona de carga. Iluminación insuficiente para análisis definitivo.",
+            module="CARGO",
+            ipfs_cid="QmZ493qkBKZF6iB1znAhdCxxhxnm8aJMvBnputwHeJVhaU",
+            ipfs_url="https://gateway.pinata.cloud/ipfs/QmZ493qkBKZF6iB1znAhdCxxhxnm8aJMvBnputwHeJVhaU",
+        ),
+    ]
+
+    async with async_session_maker() as session:
+        from sqlalchemy import text
+        # Fix: Delete all existing events first for a clean demo state
+        await session.execute(text("DELETE FROM events"))
+        
+        for event in demo_events:
+            session.add(event)
+        await session.commit()
+
+    return {"status": "success", "message": "3 demo events seeded (DB cleaned)", "count": 3}

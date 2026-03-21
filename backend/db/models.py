@@ -14,6 +14,10 @@ class EventType(str, Enum):
     UNAUTHORIZED_ACCESS = "UNAUTHORIZED_ACCESS"
     CLOCK_IN = "CLOCK_IN"
     CLOCK_OUT = "CLOCK_OUT"
+    # Logistics events
+    ROBO = "ROBO"
+    MANIPULACION_CARGA = "MANIPULACION_CARGA"
+    APERTURA_NO_AUTORIZADA = "APERTURA_NO_AUTORIZADA"
 
 class BlockchainStatus(str, Enum):
     PENDING = "pending"
@@ -32,5 +36,8 @@ class Event(Base):
     blockchain_status = Column(String, default=BlockchainStatus.PENDING)
     confidence = Column(Float)
     event_metadata = Column(JSON, default={})
-    module = Column(String, default="FACTORY")  # FACTORY | CARGO
-    genlayer_verdict = Column(String)  # Verdict from GenLayer contract
+    module = Column(String, default="CARGO")  # FACTORY | CARGO
+    genlayer_verdict = Column(String)  # ROBO_CONFIRMADO | FALSA_ALARMA | REQUIERE_REVISION
+    incident_description = Column(String, nullable=True)  # Textual description for Genlayer
+    ipfs_cid = Column(String, nullable=True)   # IPFS CID of the incident clip (Pinata)
+    ipfs_url = Column(String, nullable=True)   # Public gateway URL for the clip

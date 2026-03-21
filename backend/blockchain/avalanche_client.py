@@ -69,41 +69,52 @@ class AvalancheClient:
             self.account is not None
         )
 
-    async def register_event(self, event_id: str, camera_id: str, timestamp: str, hash_sha256: str, event_type: str) -> str:
+    async def register_event(
+        self,
+        event_id: str,
+        camera_id: str,
+        timestamp: str,
+        hash_sha256: str,
+        event_type: str,
+        ipfs_cid: str = "",
+        description: str = "",
+    ) -> str:
         """
-        Store an event on the blockchain.
+        Store an event on the blockchain with IPFS CID and description.
         Returns the transaction hash as a hex string.
         """
         if not self.is_connected():
             raise RuntimeError("AvalancheClient is not fully connected or configured.")
 
-        # Convert timestamp to uint256 (seconds since epoch)
         from datetime import datetime
         try:
-            # Assumes ISO format string timestamp or similar, or epoch
             if isinstance(timestamp, str):
                 ts = int(datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp())
             else:
                 ts = int(timestamp)
         except Exception:
-            # Fallback to current time if parsing fails
             ts = int(datetime.utcnow().timestamp())
 
-        logger.info(f"Registrando hash en Avalanche L1... (hash: {hash_sha256})")
+        # Truncate description to 200 chars to keep gas costs low
+        desc_trimmed = (description or "")[:200]
+
+        logger.info(f"Registrando en Avalanche L1 — hash: {hash_sha256[:16]}... ipfs_cid: {ipfs_cid[:20] if ipfs_cid else 'sin IPFS'}")
 
         nonce = self.w3.eth.get_transaction_count(self.account.address)
-        
+
         tx = self.contract.functions.store(
             str(camera_id),
             ts,
             str(hash_sha256),
-            str(event_type)
+            str(event_type),
+            str(ipfs_cid),
+            desc_trimmed,
         ).build_transaction({
             "chainId": self.chain_id,
-            "gas": 300000,
+            "gas": 400000,
             "gasPrice": self.w3.eth.gas_price,
             "from": self.account.address,
-            "nonce": nonce
+            "nonce": nonce,
         })
 
         signed_tx = self.w3.eth.account.sign_transaction(tx, private_key=self.account.key)

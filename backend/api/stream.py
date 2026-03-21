@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import Any, Optional
 
@@ -10,6 +11,7 @@ from core.config import settings
 from db.database import async_session_maker
 from db.models import Event, BlockchainStatus
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 connected_clients: set[WebSocket] = set()
@@ -17,7 +19,7 @@ event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
 _broadcast_task: Optional[asyncio.Task[None]] = None
 
 
-@router.websocket("/stream")
+@router.websocket("")
 async def ws_stream(ws: WebSocket) -> None:
     await ws.accept()
     connected_clients.add(ws)
@@ -64,8 +66,11 @@ def _to_ws_payload(db_event: Event) -> dict[str, Any]:
         else BlockchainStatus.PENDING.value,
         "confidence": db_event.confidence,
         "metadata": db_event.event_metadata or {},
-        "module": db_event.module or "FACTORY",
+        "module": db_event.module or "CARGO",
         "genlayer_verdict": db_event.genlayer_verdict,
+        "incident_description": db_event.incident_description,
+        "ipfs_cid": db_event.ipfs_cid,
+        "ipfs_url": db_event.ipfs_url,
     }
 
 
@@ -95,8 +100,9 @@ async def handle_event(
             hash_sha256=event_payload.get("hash_sha256"),
             confidence=float(event_payload.get("confidence", 0.0)),
             event_metadata=dict(event_payload.get("metadata") or {}),
-            module=event_payload.get("module") or "FACTORY",
+            module=event_payload.get("module") or "CARGO",
             genlayer_verdict=event_payload.get("genlayer_verdict"),
+            incident_description=event_payload.get("incident_description"),
         )
         session.add(ev)
         await session.commit()
@@ -114,9 +120,33 @@ async def handle_event(
                 await session.commit()
                 await session.refresh(ev)
 
+        # ── IPFS upload (only if clip exists and Pinata is configured) ──────────
+        ipfs_cid = ""
+        ipfs_url = ""
+        if ev.clip_path:
+            try:
+                from integrations.ipfs_client import pinata_client
+                if pinata_client.is_configured():
+                    logger.info(f"[INFO] Subiendo clip a IPFS: {ev.clip_path}")
+                    cid = await pinata_client.upload_file(ev.clip_path)
+                    ipfs_url_result = f"https://gateway.pinata.cloud/ipfs/{cid}"
+                    logger.info(f"[INFO] IPFS CID: {cid}")
+                    logger.info(f"[INFO] URL pública: {ipfs_url_result}")
+                    ipfs_cid = cid
+                    ipfs_url = ipfs_url_result
+                    ev.ipfs_cid = cid
+                    ev.ipfs_url = ipfs_url_result
+                    ev.event_metadata = {**(ev.event_metadata or {}), "ipfs_cid": cid, "ipfs_url": ipfs_url_result}
+                    session.add(ev)
+                    await session.commit()
+                    await session.refresh(ev)
+                else:
+                    logger.warning("[WARNING] IPFS no configurado, video solo en storage local")
+            except Exception as e:
+                logger.error(f"[ERROR] Fallo al subir a IPFS: {e}")
+
+        # ── Avalanche L1 registration ────────────────────────────────────────────
         from blockchain.avalanche_client import avalanche_client
-        import logging
-        logger = logging.getLogger(__name__)
 
         if getattr(settings, "BLOCKCHAIN_ENABLED", False) and avalanche_client.is_connected() and ev.hash_sha256:
             try:
@@ -126,13 +156,16 @@ async def handle_event(
                     timestamp=ev.timestamp.isoformat() if ev.timestamp else "",
                     hash_sha256=str(ev.hash_sha256),
                     event_type=str(ev.type),
+                    ipfs_cid=ipfs_cid,
+                    description=ev.incident_description or "",
                 )
                 ev.blockchain_tx = tx_hash
                 ev.blockchain_status = "confirmed"
                 session.add(ev)
                 await session.commit()
                 await session.refresh(ev)
-                logger.info(f"Evento blockchain_status=confirmed (tx: {tx_hash})")
+                logger.info(f"[INFO] Registrando en Avalanche: hash + CID={ipfs_cid[:12] if ipfs_cid else 'sin IPFS'}...")
+                logger.info(f"[INFO] TX confirmada: {tx_hash}")
             except Exception as e:
                 logger.error(f"Error registering event on Avalanche: {e}")
                 ev.blockchain_status = "failed"

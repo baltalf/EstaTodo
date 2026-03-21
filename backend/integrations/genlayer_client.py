@@ -2,18 +2,25 @@ import json
 import logging
 import asyncio
 from pathlib import Path
+from datetime import datetime
 
 from core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Valid verdict values
+VERDICT_ROBO_CONFIRMADO = "ROBO_CONFIRMADO"
+VERDICT_FALSA_ALARMA = "FALSA_ALARMA"
+VERDICT_REQUIERE_REVISION = "REQUIERE_REVISION"
+VALID_VERDICTS = {VERDICT_ROBO_CONFIRMADO, VERDICT_FALSA_ALARMA, VERDICT_REQUIERE_REVISION}
+
 
 class GenLayerClient:
     def __init__(self):
         self.simulator_url = settings.GENLAYER_SIMULATOR_URL
         self.contract_address = settings.GENLAYER_CONTRACT_ADDRESS
         self.deployed_path = Path(__file__).resolve().parent.parent.parent / "genlayer" / "deployed.json"
-        
-        # Si existe el deployed.json, usarlo
+
         if self.deployed_path.exists() and not self.contract_address:
             try:
                 with open(self.deployed_path, "r") as f:
@@ -25,63 +32,73 @@ class GenLayerClient:
     def is_configured(self) -> bool:
         return bool(self.simulator_url)
 
-    async def deploy_contract(self) -> str:
-        """
-        Despliega verdict_contract.py en la red Genlayer/Simulador.
-        """
-        if not self.is_configured():
-            logger.warning("[MOCK] Genlayer simulator no configurado. Skipiando el deploy real.")
-            self.contract_address = "mock_contract_address"
-            return self.contract_address
-        
-        # TODO: Implemetar deploy real si genlayer-py provee APIs de deploy directas
-        # Para el scope inicial simularemos la subida o la gestionariamos por CLI de genlayer.
-        logger.warning("Deploy de Genlayer real deberia interactuar con su API, devolviendo dirección dummy.")
-        return "not_implemented_address"
-
     async def request_verdict(
         self,
         hash_sha256: str,
-        frame_urls: list[str], 
+        incident_description: str,
         event_type: str,
-        context: str
+        ipfs_cid: str = "",
     ) -> str:
         """
-        Llama a request_verdict() asincrono en Genlayer.
+        Solicita veredicto al LLM de Genlayer usando descripción textual + CID IPFS.
+        Retorna: ROBO_CONFIRMADO | FALSA_ALARMA | REQUIERE_REVISION
         """
-        if not self.is_configured():
-            logger.info("[MOCK] Genlayer no configurado, usando veredicto mock de 2s...")
-            await asyncio.sleep(2)
-            return "ACCIDENTE_REAL"
-            
-        # Try importing genlayer components if using simulator
-        try:
-            import genlayer as gl
-            import httpx
-            # Logica de interaccion con los RPC del sim
-            # Como la SDK python varia comunmente, delegar a HTTP para genlayer simulator si se requiere
-            pass
-        except ImportError:
-            pass
+        ipfs_line = (
+            f"Video disponible en IPFS: ipfs://{ipfs_cid}"
+            if ipfs_cid
+            else "Video en storage local (IPFS no configurado)."
+        )
 
-        # Si estuviéramos conectados usaríamos el conector standard de Genlayer JSON-RPC.
-        logger.warning(f"Connecting to simulator {self.simulator_url} needs API spec. Fallbacking to mock.")
+        prompt = f"""
+Sos un perito forense especializado en fraudes logísticos en Argentina.
+
+Se registró el siguiente incidente en un camión de carga:
+
+{incident_description}
+
+Hash SHA-256 del video de evidencia (verificado en Avalanche L1): {hash_sha256}
+{ipfs_line}
+
+Basándote en esta descripción, determiná si se trata de:
+- ROBO_CONFIRMADO: hay evidencia clara de robo o manipulación ilegal de carga
+- FALSA_ALARMA: el sistema detectó movimiento pero no hay indicios de robo
+- REQUIERE_REVISION: la descripción no es suficiente para determinar
+
+Respondé ÚNICAMENTE con uno de estos tres valores exactos, sin explicación.
+"""
+        logger.info(
+            f"[Genlayer] Prompt preparado para {event_type}, "
+            f"hash={hash_sha256[:16]}..., ipfs={'sí' if ipfs_cid else 'no'}"
+        )
+
+        if not self.is_configured():
+            logger.info("[Genlayer] Simulador no configurado — devolviendo mock REQUIERE_REVISION")
+            await asyncio.sleep(1.5)
+            return VERDICT_REQUIERE_REVISION
+
+        try:
+            import genlayer as gl  # type: ignore
+            logger.warning("[Genlayer] SDK disponible pero integración no implementada — usando mock")
+        except ImportError:
+            logger.warning("[Genlayer] SDK no instalado — usando mock")
+
         await asyncio.sleep(2)
-        return "ACCIDENTE_REAL"
+
+        # Demo mock logic: deterministic by event_type
+        if event_type in ("ROBO", "UNAUTHORIZED_ACCESS", "APERTURA_NO_AUTORIZADA"):
+            return VERDICT_ROBO_CONFIRMADO
+        elif event_type in ("FALL", "MANIPULACION_CARGA"):
+            return VERDICT_REQUIERE_REVISION
+        return VERDICT_FALSA_ALARMA
 
     async def get_verdict(self, hash_sha256: str) -> dict:
-        """
-        Lee el state deterministico actual para el hast.
-        """
         if not self.is_configured():
             return {
-                "verdict": "ACCIDENTE_REAL",
-                "frame_urls": [],
+                "verdict": VERDICT_REQUIERE_REVISION,
                 "event_type": "MOCK",
-                "timestamp": "MOCK"
+                "timestamp": datetime.utcnow().isoformat(),
             }
-        
-        # Logica real
         return {}
-        
+
+
 genlayer_client = GenLayerClient()

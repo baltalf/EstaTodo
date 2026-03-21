@@ -57,9 +57,10 @@ def main():
     Registry = w3.eth.contract(abi=abi, bytecode=bytecode)
     nonce = w3.eth.get_transaction_count(account.address)
 
-    logger.info("Estimating gas and building transaction...")
+    logger.info("Estimating gas and building transaction (Registry v2 — ipfsCid + description fields)...")
     tx = Registry.constructor().build_transaction({
         "chainId": chain_id,
+        "gas": 2000000,
         "gasPrice": w3.eth.gas_price,
         "from": account.address,
         "nonce": nonce

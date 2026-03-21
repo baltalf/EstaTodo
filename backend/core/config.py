@@ -51,6 +51,17 @@ class Settings(BaseSettings):
     GENLAYER_SIMULATOR_URL: str = ""  # vacío = modo mock
     GENLAYER_CONTRACT_ADDRESS: str = ""
 
+    # Supabase (Auth/DB)
+    next_public_supabase_url: str = ""
+    next_public_supabase_anon_key: str = ""
+
+    # Mercado Pago
+    mp_public_key: str = ""
+    mp_access_token: str = ""
+
+    # Suscripciones en L1
+    subscription_contract_address: str = ""
+
     class Config:
         env_file = ".env"
 

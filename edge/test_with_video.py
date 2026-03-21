@@ -52,12 +52,18 @@ async def main():
     video_path = args.video
 
     if not video_path:
-        logger.info("No se proporcionó --video, buscando el primer .mp4 en la raíz del proyecto...")
-        found_video = find_first_mp4(root_dir)
-        if not found_video:
-            logger.error("No se encontró ningún archivo .mp4. Por favor, provea uno con --video.")
-            sys.exit(1)
-        video_path = str(found_video)
+        # Check for video_robo.mp4 specifically first, as requested in Task 5
+        video_robo_path = root_dir / "video_robo.mp4"
+        if video_robo_path.exists():
+            logger.info("No se proporcionó --video, usando video_robo.mp4 por defecto...")
+            video_path = str(video_robo_path)
+        else:
+            logger.info("No se proporcionó --video ni se encontró video_robo.mp4, buscando el primer .mp4 en la raíz del proyecto...")
+            found_video = find_first_mp4(root_dir)
+            if not found_video:
+                logger.error("No se encontró ningún archivo .mp4. Por favor, provea uno con --video.")
+                sys.exit(1)
+            video_path = str(found_video)
 
     if not os.path.exists(video_path):
         logger.error(f"El archivo de video no existe: {video_path}")
