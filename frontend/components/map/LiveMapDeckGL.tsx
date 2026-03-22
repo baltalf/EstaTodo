@@ -220,6 +220,8 @@ export default function LiveMapDeckGL() {
         controller={true}
         layers={layers}
         useDevicePixels={false}
+        // @ts-ignore — force WebGL device to avoid luma.gl v9 init crash
+        deviceProps={{ type: 'webgl' }}
         style={{ position: 'absolute', inset: '0', zIndex: '3' }}
         getCursor={({ isDragging, isHovering }: any) =>
           isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
