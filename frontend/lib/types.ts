@@ -45,6 +45,18 @@ export interface Tenant {
   eventsThisMonth: number;
 }
 
+export const STATUS_COLOR: Record<string, [number, number, number]> = {
+  en_ruta:   [16, 185, 129],
+  detenido:  [245, 158, 11],
+  incidente: [239, 68, 68],
+}
+
+export const STATUS_HEX: Record<string, string> = {
+  en_ruta:   '#10B981',
+  detenido:  '#F59E0B',
+  incidente: '#EF4444',
+}
+
 export const TRUCKS: Truck[] = [
   {
     id: 'TRK-01', plate: 'AB 123 CD',

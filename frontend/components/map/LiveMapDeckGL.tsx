@@ -3,102 +3,117 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DeckGL from '@deck.gl/react'
 import { ScatterplotLayer, ArcLayer, TextLayer } from '@deck.gl/layers'
-import Map from 'react-map-gl/mapbox'
+import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { TRUCKS, STATUS_COLOR, STATUS_HEX } from '@/lib/types'
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-
-const TRUCKS = [
-  {
-    id: 'TRK-01',
-    position: [-58.3816, -34.6037],
-    status: 'incidente',
-    driver: 'Juan Pérez',
-    cargo: 'Electrodomésticos Samsung',
-    value: 2100000,
-    incidents: 1,
-    origin: [-58.3816, -34.6037],
-    destination: [-64.1888, -31.4201],
-  },
-  {
-    id: 'TRK-02',
-    position: [-64.1888, -31.4201],
-    status: 'en_ruta',
-    driver: 'Carlos López',
-    cargo: 'Indumentaria deportiva',
-    value: 420000,
-    incidents: 0,
-    origin: [-60.7, -32.9],
-    destination: [-64.1888, -31.4201],
-  },
-  {
-    id: 'TRK-03',
-    position: [-68.8272, -32.8908],
-    status: 'detenido',
-    driver: 'Miguel Torres',
-    cargo: 'Electrónica importada',
-    value: 1200000,
-    incidents: 2,
-    origin: [-68.8272, -32.8908],
-    destination: [-58.3816, -34.6037],
-  },
-]
-
-const STATUS_COLOR: Record<string, [number, number, number]> = {
-  en_ruta:   [16, 185, 129],
-  detenido:  [245, 158, 11],
-  incidente: [239, 68, 68],
-}
-
-const STATUS_HEX: Record<string, string> = {
-  en_ruta:   '#10B981',
-  detenido:  '#F59E0B',
-  incidente: '#EF4444',
-}
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
 const INITIAL_VIEW_STATE = {
   longitude: -63,
-  latitude: -25,
-  zoom: 3.5,
-  pitch: 0,
-  bearing: 0,
+  latitude: -30,
+  zoom: 3.0,
+  pitch: 40,
+  bearing: -10,
+}
+
+// Destination coords lookup for ArcLayer
+const DEST_COORDS: Record<string, [number, number]> = {
+  'TRK-01': [-64.1888, -31.4201],
+  'TRK-02': [-68.8272, -32.8908],
+  'TRK-03': [-58.3816, -34.6037],
 }
 
 export default function LiveMapDeckGL() {
   const router = useRouter()
+  const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE)
   const [hoveredTruck, setHoveredTruck] = useState<any>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [selectedTruck, setSelectedTruck] = useState<any>(null)
   const [detailPanel, setDetailPanel] = useState<any>(null)
+  const [mounted, setMounted] = useState(false)
 
+  useEffect(() => { setMounted(true) }, [])
+
+  // Initialize Mapbox GL as a standalone map (not inside DeckGL)
   useEffect(() => {
-    if (!mapRef.current) return
-    const map = mapRef.current.getMap()
-    
-    let animationFrame: number
-    let bearing = 0
-    
-    const rotate = () => {
-      bearing -= 0.02
-      map.setBearing(bearing)
-      animationFrame = requestAnimationFrame(rotate)
-    }
-    
-    const timeout = setTimeout(() => {
-      animationFrame = requestAnimationFrame(rotate)
-    }, 2000)
-    
-    const stopRotation = () => cancelAnimationFrame(animationFrame)
-    map.on('mousedown', stopRotation)
-    map.on('touchstart', stopRotation)
-    
+    if (!mapContainerRef.current || mapRef.current) return
+
+    mapboxgl.accessToken = MAPBOX_TOKEN
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/satellite-streets-v12',
+      center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
+      zoom: INITIAL_VIEW_STATE.zoom,
+      pitch: INITIAL_VIEW_STATE.pitch,
+      bearing: INITIAL_VIEW_STATE.bearing,
+      interactive: false,
+      antialias: true,
+      fadeDuration: 0,
+    })
+
+    mapRef.current = map
+
+    map.on('load', () => {
+      try {
+        // Satellite style country borders — Cyan Neon
+        if (map.getLayer('admin-0-boundary')) {
+          map.setPaintProperty('admin-0-boundary', 'line-color', '#00FFD1')
+          map.setPaintProperty('admin-0-boundary', 'line-opacity', 0.9)
+          map.setPaintProperty('admin-0-boundary', 'line-width', 1.5)
+        }
+        if (map.getLayer('admin-0-boundary-bg')) {
+          map.setPaintProperty('admin-0-boundary-bg', 'line-color', '#00FFD1')
+          map.setPaintProperty('admin-0-boundary-bg', 'line-opacity', 0.2)
+          map.setPaintProperty('admin-0-boundary-bg', 'line-width', 8)
+        }
+        if (map.getLayer('admin-1-boundary')) {
+          map.setPaintProperty('admin-1-boundary', 'line-color', '#1E40AF')
+          map.setPaintProperty('admin-1-boundary', 'line-opacity', 0.5)
+          map.setPaintProperty('admin-1-boundary', 'line-width', 0.8)
+        }
+        // Country labels slightly brighter with black halo
+        if (map.getLayer('country-label')) {
+          map.setPaintProperty('country-label', 'text-color', '#F8FAFC')
+          map.setPaintProperty('country-label', 'text-halo-color', '#000000')
+          map.setPaintProperty('country-label', 'text-halo-width', 1.5)
+        }
+        if (map.getLayer('settlement-major-label')) {
+          map.setPaintProperty('settlement-major-label', 'text-color', '#94A3B8')
+          map.setPaintProperty('settlement-major-label', 'text-halo-color', '#000000')
+          map.setPaintProperty('settlement-major-label', 'text-halo-width', 1)
+        }
+      } catch (err) {
+        console.warn('Map style error:', err)
+      }
+
+      // Optional globe projection
+      try { (map as any).setProjection('globe') } catch (_) {}
+    })
+
     return () => {
-      clearTimeout(timeout)
-      cancelAnimationFrame(animationFrame)
+      map.remove()
+      mapRef.current = null
     }
   }, [])
+
+  // Sync DeckGL viewState → Mapbox — throttled with RAF to avoid zoom lag
+  const rafRef = useRef<number>(0)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(() => {
+      map.jumpTo({
+        center: [viewState.longitude, viewState.latitude],
+        zoom: viewState.zoom,
+        pitch: viewState.pitch,
+        bearing: viewState.bearing,
+      })
+    })
+  }, [viewState])
 
   const onViewStateChange = useCallback(
     ({ viewState }: any) => setViewState(viewState), []
@@ -109,8 +124,8 @@ export default function LiveMapDeckGL() {
   const arcLayer = new ArcLayer({
     id: 'arcs',
     data: TRUCKS,
-    getSourcePosition: (d: any) => d.origin,
-    getTargetPosition: (d: any) => d.destination,
+    getSourcePosition: (d: any) => [d.coords.lng, d.coords.lat] as [number, number],
+    getTargetPosition: (d: any) => DEST_COORDS[d.id] ?? [d.coords.lng, d.coords.lat],
     getSourceColor: (d: any) => [...STATUS_COLOR[d.status], 200] as any,
     getTargetColor: (d: any) => [...STATUS_COLOR[d.status], 30] as any,
     getWidth: 2.5,
@@ -121,8 +136,8 @@ export default function LiveMapDeckGL() {
   const pulseLayer = new ScatterplotLayer({
     id: 'pulse',
     data: TRUCKS,
-    getPosition: (d: any) => d.position,
-    getColor: (d: any) => [...STATUS_COLOR[d.status], 20] as any,
+    getPosition: (d: any) => [d.coords.lng, d.coords.lat] as [number, number],
+    getFillColor: (d: any) => [...STATUS_COLOR[d.status], 20] as any,
     getRadius: pulseRadius,
     radiusUnits: 'meters',
     pickable: false,
@@ -131,8 +146,8 @@ export default function LiveMapDeckGL() {
   const truckLayer = new ScatterplotLayer({
     id: 'trucks',
     data: TRUCKS,
-    getPosition: (d: any) => d.position,
-    getColor: (d: any) => STATUS_COLOR[d.status],
+    getPosition: (d: any) => [d.coords.lng, d.coords.lat] as [number, number],
+    getFillColor: (d: any) => STATUS_COLOR[d.status],
     getRadius: 18000,
     radiusMinPixels: 7,
     radiusMaxPixels: 14,
@@ -155,7 +170,7 @@ export default function LiveMapDeckGL() {
   const textLayer = new TextLayer({
     id: 'labels',
     data: TRUCKS,
-    getPosition: (d: any) => d.position,
+    getPosition: (d: any) => [d.coords.lng, d.coords.lat] as [number, number],
     getText: (d: any) => d.id,
     getSize: 11,
     getColor: [255, 255, 255, 220] as any,
@@ -173,78 +188,44 @@ export default function LiveMapDeckGL() {
   const layers = [arcLayer, pulseLayer, truckLayer, textLayer]
 
   return (
-    <div style={{ 
-      position: 'relative', 
-      width: '100%', 
-      height: '100%', 
+    <div style={{
+      position: 'relative',
+      width: '100%',
+      height: '100%',
       background: '#080e1a',
       overflow: 'hidden',
     }}>
-      {/* Cuadrícula militar */}
+      {/* Mapbox GL base map */}
+      <div
+        ref={mapContainerRef}
+        style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+      />
+
+      {/* Standard Satellite Grid overlay */}
       <div style={{
-        position: 'absolute', inset: 0, zIndex: 1,
+        position: 'absolute', inset: 0, zIndex: 2,
         pointerEvents: 'none',
         backgroundImage: `
-          linear-gradient(rgba(6,182,212,0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(6,182,212,0.04) 1px, transparent 1px)
+          linear-gradient(rgba(0,255,200,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,255,200,0.03) 1px, transparent 1px)
         `,
-        backgroundSize: '70px 70px',
+        backgroundSize: '80px 80px',
       }} />
 
+      {/* DeckGL overlay — only mount after DOM is ready to avoid WebGL init crash */}
+      {mounted && (
       <DeckGL
         viewState={viewState}
         onViewStateChange={onViewStateChange}
         controller={true}
         layers={layers}
-        style={{ position: 'absolute', inset: '0', zIndex: '2' }}
+        useDevicePixels={false}
+        style={{ position: 'absolute', inset: '0', zIndex: '3' }}
         getCursor={({ isDragging, isHovering }: any) =>
           isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
         }
-      >
-        <Map
-          ref={mapRef}
-          mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle="mapbox://styles/mapbox/navigation-night-v1"
-          style={{ width: '100%', height: '100%' }}
-          projection="globe"
-          onLoad={(e: any) => {
-            try {
-              const map = e.target
-              // Agua azul oscuro militar
-              map.setPaintProperty('water', 'fill-color', '#020d1f')
-              
-              // Contornos de PAÍSES en cyan neón
-              map.setPaintProperty('admin-0-boundary', 'line-color', '#06B6D4')
-              map.setPaintProperty('admin-0-boundary', 'line-opacity', 0.7)
-              map.setPaintProperty('admin-0-boundary', 'line-width', 1.5)
-              
-              // Halo/glow del contorno de países
-              if (map.getLayer('admin-0-boundary-bg')) {
-                map.setPaintProperty('admin-0-boundary-bg', 'line-color', '#06B6D4')
-                map.setPaintProperty('admin-0-boundary-bg', 'line-opacity', 0.15)
-                map.setPaintProperty('admin-0-boundary-bg', 'line-width', 6)
-              }
-              
-              // Contornos de PROVINCIAS en azul sutil
-              map.setPaintProperty('admin-1-boundary', 'line-color', '#1E40AF')
-              map.setPaintProperty('admin-1-boundary', 'line-opacity', 0.4)
-              map.setPaintProperty('admin-1-boundary', 'line-width', 0.8)
-              
-              // Labels de países más visibles
-              if (map.getLayer('country-label')) {
-                map.setPaintProperty('country-label', 'text-color', '#94A3B8')
-              }
-              
-              // Labels de ciudades
-              if (map.getLayer('settlement-major-label')) {
-                map.setPaintProperty('settlement-major-label', 'text-color', '#475569')
-              }
-            } catch (err) {
-              console.warn('Map style error:', err)
-            }
-          }}
-        />
-      </DeckGL>
+      />
+      )}
 
       {/* Tooltip */}
       {hoveredTruck && (
@@ -264,10 +245,10 @@ export default function LiveMapDeckGL() {
             {hoveredTruck.id}
           </div>
           <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '2px' }}>
-            👤 {hoveredTruck.driver}
+            👤 {hoveredTruck.driver.name}
           </div>
           <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>
-            📦 {hoveredTruck.cargo}
+            📦 {hoveredTruck.cargo.description}
           </div>
           <div style={{
             fontSize: '11px', fontWeight: '600',
@@ -280,35 +261,37 @@ export default function LiveMapDeckGL() {
         </div>
       )}
 
-      {/* Panel de detalle del camión */}
+      {/* Click detail panel — compact square card */}
       {detailPanel && (() => {
-        const truck = detailPanel;
+        const truck = detailPanel
         return (
           <div style={{
             position: 'absolute',
-            left: '220px',
-            top: 0, bottom: 0,
-            width: '300px',
+            left: '16px',
+            top: '16px',
+            width: '280px',
             zIndex: 20,
             background: 'rgba(8,14,26,0.97)',
-            borderRight: '1px solid #334155',
-            backdropFilter: 'blur(10px)',
-            overflowY: 'auto'
+            border: '1px solid #334155',
+            borderRadius: '12px',
+            backdropFilter: 'blur(12px)',
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
           }}>
             <div style={{
               background: '#1E293B', padding: '14px 16px',
               borderBottom: '0.5px solid #334155', display: 'flex',
-              justifyContent: 'space-between', alignItems: 'center'
+              justifyContent: 'space-between', alignItems: 'center',
             }}>
               <div>
                 <div style={{ color: STATUS_HEX[truck.status], fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace' }}>
                   {truck.id}
                 </div>
                 <div style={{ color: '#64748B', fontSize: '12px' }}>
-                  {truck.driver}
+                  {truck.driver.name}
                 </div>
               </div>
-              <div 
+              <div
                 onClick={() => setDetailPanel(null)}
                 style={{ color: '#64748B', cursor: 'pointer', padding: '4px', fontSize: '16px' }}
               >✕</div>
@@ -318,21 +301,21 @@ export default function LiveMapDeckGL() {
               <div style={{ background: '#1E293B', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ color: '#94A3B8' }}>Estado</span>
-                  <span style={{ 
+                  <span style={{
                     padding: '2px 6px', borderRadius: '3px', fontWeight: 'bold', fontSize: '10px',
                     background: truck.status === 'incidente' ? '#450a0a' : truck.status === 'en_ruta' ? '#052e16' : '#1c1917',
-                    color: STATUS_HEX[truck.status]
+                    color: STATUS_HEX[truck.status],
                   }}>
                     {truck.status === 'incidente' ? 'INCIDENTE' : truck.status === 'en_ruta' ? 'EN RUTA' : 'DETENIDO'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ color: '#94A3B8' }}>Carga</span>
-                  <span style={{ color: '#E2E8F0', textAlign: 'right', maxWidth: '140px' }}>{truck.cargo}</span>
+                  <span style={{ color: '#E2E8F0', textAlign: 'right', maxWidth: '140px' }}>{truck.cargo.description}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ color: '#94A3B8' }}>Valor</span>
-                  <span style={{ color: '#E2E8F0' }}>${truck.value.toLocaleString()}</span>
+                  <span style={{ color: '#E2E8F0' }}>${truck.cargo.value.toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94A3B8' }}>Incidentes</span>
@@ -347,10 +330,10 @@ export default function LiveMapDeckGL() {
               <div style={{ fontSize: '9px', textTransform: 'uppercase', color: '#64748B', marginBottom: '8px', fontWeight: 'bold' }}>RUTA ACTIVA</div>
               <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: '#E2E8F0' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', marginRight: '8px' }} />
-                <span>{truck.id === 'TRK-01' ? 'Buenos Aires' : truck.id === 'TRK-02' ? 'Córdoba' : 'Mendoza'}</span>
+                <span>{truck.route.origin}</span>
                 <div style={{ flex: 1, height: '1px', background: '#334155', margin: '0 8px' }} />
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748B', marginRight: '8px' }} />
-                <span>{truck.id === 'TRK-01' ? 'Córdoba' : truck.id === 'TRK-02' ? 'Rosario' : 'Buenos Aires'}</span>
+                <span>{truck.route.destination}</span>
               </div>
             </div>
 
@@ -359,14 +342,14 @@ export default function LiveMapDeckGL() {
                 <div style={{ fontSize: '9px', textTransform: 'uppercase', color: '#EF4444', marginBottom: '8px', fontWeight: 'bold' }}>ÚLTIMO INCIDENTE</div>
                 <div style={{ background: '#1E293B', borderLeft: '2px solid #EF4444', borderRadius: '0 8px 8px 0', padding: '12px' }}>
                   <div style={{ color: '#E2E8F0', fontSize: '12px', marginBottom: '6px' }}>Robo confirmado por Genlayer</div>
-                  <div style={{ 
-                    display: 'inline-block', fontSize: '10px', background: '#450a0a', 
-                    color: '#EF4444', padding: '2px 6px', borderRadius: '4px', marginBottom: '10px', fontWeight: 'bold'
+                  <div style={{
+                    display: 'inline-block', fontSize: '10px', background: '#450a0a',
+                    color: '#EF4444', padding: '2px 6px', borderRadius: '4px', marginBottom: '10px', fontWeight: 'bold',
                   }}>
                     ROBO_CONFIRMADO
                   </div>
                   <div>
-                    <button 
+                    <button
                       onClick={() => router.push('/events')}
                       style={{ color: '#06B6D4', fontSize: '12px', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                     >
@@ -378,13 +361,13 @@ export default function LiveMapDeckGL() {
             )}
 
             <div style={{ padding: '0 16px 16px', display: 'flex', gap: '8px', flexDirection: 'column' }}>
-              <button 
+              <button
                 onClick={() => router.push('/fleet/' + truck.id.toLowerCase().replace('-', ''))}
                 style={{ background: '#2563EB', color: 'white', width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', border: 'none' }}
               >
-                Ver flota completa →
+                Ver detalle completo →
               </button>
-              <button 
+              <button
                 onClick={() => router.push('/events')}
                 style={{ background: 'transparent', border: '0.5px solid #334155', color: '#94A3B8', width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
               >
@@ -392,10 +375,10 @@ export default function LiveMapDeckGL() {
               </button>
             </div>
           </div>
-        );
+        )
       })()}
 
-      {/* Panel lateral */}
+      {/* Right fleet status panel */}
       <div style={{
         position: 'absolute',
         top: 0, right: 0, bottom: 0,
@@ -429,7 +412,7 @@ export default function LiveMapDeckGL() {
           {TRUCKS.map(truck => (
             <div
               key={truck.id}
-              onClick={() => setSelectedTruck(truck)}
+              onClick={() => { setSelectedTruck(truck); setDetailPanel(truck) }}
               style={{
                 background: selectedTruck?.id === truck.id
                   ? 'rgba(37,99,235,0.15)' : '#1E293B',
@@ -463,8 +446,8 @@ export default function LiveMapDeckGL() {
                    truck.status === 'en_ruta' ? '● EN RUTA' : '◼ DETENIDO'}
                 </span>
               </div>
-              <div style={{ fontSize: '10px', color: '#64748B' }}>{truck.driver}</div>
-              <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{truck.cargo}</div>
+              <div style={{ fontSize: '10px', color: '#64748B' }}>{truck.driver.name}</div>
+              <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{truck.cargo.description}</div>
               {truck.incidents > 0 && (
                 <div style={{
                   fontSize: '10px', color: '#EF4444',

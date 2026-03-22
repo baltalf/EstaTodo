@@ -8,7 +8,9 @@ export default async function FleetDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const truck = TRUCKS.find((t) => t.id === id);
+  const truck = TRUCKS.find(
+    (t) => t.id.toLowerCase().replace('-', '') === id.toLowerCase() || t.id.toLowerCase() === id.toLowerCase()
+  );
 
   if (!truck) {
     return (

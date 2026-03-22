@@ -53,7 +53,7 @@ export default function FleetDetail({
     : 0;
 
   return (
-    <div style={{ padding: 28, maxWidth: 800 }}>
+    <div style={{ padding: 28, width: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
