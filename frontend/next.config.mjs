@@ -6,6 +6,14 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
       },
+      {
+        protocol: 'https',
+        hostname: '*.ngrok-free.app',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ngrok-free.app',
+      },
     ],
   },
 }

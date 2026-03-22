@@ -9,7 +9,9 @@ export function useWebSocket() {
     let reconnectTimer: ReturnType<typeof setTimeout>;
 
     const connect = () => {
-      const url = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8001/ws';
+      let rawUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8001/ws';
+      // Auto-convert http/https to ws/wss for ngrok/production URLs
+      const url = rawUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
       try {
         ws = new WebSocket(url);
       } catch {
