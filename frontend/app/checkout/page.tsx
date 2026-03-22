@@ -1,8 +1,8 @@
 'use client'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const params = useSearchParams()
   const router = useRouter()
   const plan = params.get('plan') || 'pro'
@@ -208,5 +208,13 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#080e1a' }}></div>}>
+      <CheckoutContent />
+    </Suspense>
   )
 }

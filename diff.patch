@@ -1,0 +1,3203 @@
+diff --git a/backend/core/config.py b/backend/core/config.py
+index d391b61..f618587 100644
+--- a/backend/core/config.py
++++ b/backend/core/config.py
+@@ -62,6 +62,9 @@ class Settings(BaseSettings):
+     # Suscripciones en L1
+     subscription_contract_address: str = ""
+ 
++    # Mapbox
++    next_public_mapbox_token: str = ""
++
+     class Config:
+         env_file = ".env"
+ 
+diff --git a/frontend/app/checkout/page.tsx b/frontend/app/checkout/page.tsx
+index 1cf3db1..4845ede 100644
+--- a/frontend/app/checkout/page.tsx
++++ b/frontend/app/checkout/page.tsx
+@@ -1,8 +1,8 @@
+ 'use client'
+ import { useSearchParams, useRouter } from 'next/navigation'
+-import { useState, useEffect } from 'react'
++import { useState, useEffect, Suspense } from 'react'
+ 
+-export default function CheckoutPage() {
++function CheckoutContent() {
+   const params = useSearchParams()
+   const router = useRouter()
+   const plan = params.get('plan') || 'pro'
+@@ -210,3 +210,11 @@ export default function CheckoutPage() {
+     </div>
+   )
+ }
++
++export default function CheckoutPage() {
++  return (
++    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#080e1a' }}></div>}>
++      <CheckoutContent />
++    </Suspense>
++  )
++}
+diff --git a/frontend/app/checkout/success/page.tsx b/frontend/app/checkout/success/page.tsx
+index e554015..1c49ea5 100644
+--- a/frontend/app/checkout/success/page.tsx
++++ b/frontend/app/checkout/success/page.tsx
+@@ -1,8 +1,9 @@
+ 'use client'
+ import { useEffect } from 'react'
+ import { useRouter, useSearchParams } from 'next/navigation'
++import { Suspense } from 'react'
+ 
+-export default function CheckoutSuccessPage() {
++function CheckoutSuccessContent() {
+   const router = useRouter()
+   const searchParams = useSearchParams()
+ 
+@@ -72,3 +73,11 @@ export default function CheckoutSuccessPage() {
+     </div>
+   )
+ }
++
++export default function CheckoutSuccessPage() {
++  return (
++    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#080e1a' }}></div>}>
++      <CheckoutSuccessContent />
++    </Suspense>
++  )
++}
+diff --git a/frontend/app/demo/page.tsx b/frontend/app/demo/page.tsx
+deleted file mode 100644
+index f66eef7..0000000
+--- a/frontend/app/demo/page.tsx
++++ /dev/null
+@@ -1,230 +0,0 @@
+-'use client';
+-import React, { useEffect, useState } from 'react';
+-import Link from 'next/link';
+-import { SGEvent } from '@/lib/types';
+-
+-export default function DemoPage() {
+-  const [events, setEvents] = useState<SGEvent[]>([]);
+-  const [showVideo, setShowVideo] = useState(false);
+-
+-  useEffect(() => {
+-    const fetchEvents = async () => {
+-      try {
+-        const res = await fetch('http://localhost:8001/api/events');
+-        if (res.ok) {
+-          const data = await res.json();
+-          setEvents(data);
+-        }
+-      } catch (err) {
+-        console.error("Failed to fetch events:", err);
+-      }
+-    };
+-
+-    fetchEvents();
+-    const interval = setInterval(fetchEvents, 3000);
+-    return () => clearInterval(interval);
+-  }, []);
+-
+-  const latestEvent = events.length > 0 ? events[0] : null;
+-  const isDetected = events.length > 0;
+-  const isBlockchainConfirmed = latestEvent?.blockchain_status === 'confirmed';
+-  const hasVerdict = !!latestEvent?.genlayer_verdict;
+-
+-  return (
+-    <div style={{ minHeight: '100vh', backgroundColor: '#0d0f14', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '60px 40px' }}>
+-        
+-        {/* Header */}
+-        <div style={{ marginBottom: 60, textAlign: 'center' }}>
+-          <h1 style={{ fontSize: 42, fontWeight: 800, margin: 0, letterSpacing: '-0.02em', background: 'linear-gradient(90deg, #fff, #a1a1aa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+-            Esta Todo <span style={{ color: '#f59e0b', WebkitTextFillColor: '#f59e0b' }}>Demo</span>
+-          </h1>
+-          <p style={{ fontSize: 18, color: '#a1a1aa', marginTop: 12 }}>
+-            Auditoría laboral inmutable con IA + Blockchain en tiempo real.
+-          </p>
+-        </div>
+-
+-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 60 }}>
+-          
+-          {/* Left Column: Flow */}
+-          <div>
+-            <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 30, color: '#f59e0b' }}>Flujo del Sistema</h2>
+-            
+-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+-              
+-              {/* Step 1 */}
+-              <div style={{ 
+-                padding: 24, 
+-                borderRadius: 16, 
+-                backgroundColor: '#161925', 
+-                border: `1px solid ${isDetected ? '#10b981' : '#272a38'}`,
+-                position: 'relative',
+-                transition: 'all 0.3s'
+-              }}>
+-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+-                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: isDetected ? '#10b981' : '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 14 }}>1</div>
+-                    <h3 style={{ margin: 0, fontSize: 18 }}>Edge AI detecta el incidente</h3>
+-                  </div>
+-                  {isDetected && <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span>}
+-                </div>
+-                <div style={{ marginBottom: 16 }}>
+-                  <span style={{ fontSize: 12, padding: '4px 10px', backgroundColor: '#272a38', borderRadius: 20, color: '#a1a1aa', fontWeight: 600 }}>
+-                    YOLOv8 + OpenCV
+-                  </span>
+-                </div>
+-                <p style={{ margin: 0, color: '#a1a1aa', fontSize: 15 }}>Cámara CCTV detecta movimiento sospechoso en tiempo real.</p>
+-                {isDetected && latestEvent && (
+-                  <div style={{ marginTop: 16 }}>
+-                    <button 
+-                      onClick={() => setShowVideo(true)}
+-                      style={{ padding: '8px 16px', backgroundColor: '#272a38', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+-                    >
+-                      ▶ Ver evidencia
+-                    </button>
+-                  </div>
+-                )}
+-              </div>
+-
+-              {/* Step 2 */}
+-              <div style={{ 
+-                padding: 24, 
+-                borderRadius: 16, 
+-                backgroundColor: '#161925', 
+-                border: `1px solid ${isBlockchainConfirmed ? '#10b981' : '#272a38'}`,
+-                transition: 'all 0.3s'
+-              }}>
+-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+-                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: isBlockchainConfirmed ? '#10b981' : '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 14 }}>2</div>
+-                    <h3 style={{ margin: 0, fontSize: 18 }}>Hash registrado en Avalanche</h3>
+-                  </div>
+-                  {isBlockchainConfirmed && <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span>}
+-                </div>
+-                <div style={{ marginBottom: 16 }}>
+-                  <span style={{ fontSize: 12, padding: '4px 10px', backgroundColor: '#272a38', borderRadius: 20, color: '#a1a1aa', fontWeight: 600 }}>
+-                    Avalanche Subnet · Chain ID 99372
+-                  </span>
+-                </div>
+-                {isBlockchainConfirmed && latestEvent?.blockchain_tx ? (
+-                  <div>
+-                    <p style={{ margin: 0, color: '#a1a1aa', fontSize: 15, marginBottom: 8 }}>Evidencia inmutable asegurada en L1.</p>
+-                    <a href={`https://subnets.avax.network/tx/${latestEvent.blockchain_tx}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#f59e0b', textDecoration: 'none', fontFamily: 'monospace' }}>
+-                      TX: {latestEvent.blockchain_tx.substring(0, 24)}...
+-                    </a>
+-                  </div>
+-                ) : (
+-                  <p style={{ margin: 0, color: '#4b5563', fontSize: 15 }}>Esperando registro en blockchain...</p>
+-                )}
+-              </div>
+-
+-              {/* Step 3 */}
+-              <div style={{ 
+-                padding: 24, 
+-                borderRadius: 16, 
+-                backgroundColor: '#161925', 
+-                border: `1px solid ${hasVerdict ? '#10b981' : '#272a38'}`,
+-                transition: 'all 0.3s'
+-              }}>
+-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+-                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: hasVerdict ? '#10b981' : '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 14 }}>3</div>
+-                    <h3 style={{ margin: 0, fontSize: 18 }}>Genlayer emite veredicto</h3>
+-                  </div>
+-                  {hasVerdict && <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span>}
+-                </div>
+-                <div style={{ marginBottom: 16 }}>
+-                  <span style={{ fontSize: 12, padding: '4px 10px', backgroundColor: '#272a38', borderRadius: 20, color: '#a1a1aa', fontWeight: 600 }}>
+-                    Genlayer · LLM Consensus
+-                  </span>
+-                </div>
+-                {hasVerdict ? (
+-                  <div>
+-                    <h4 style={{ color: '#ef4444', margin: '0 0 8px 0', fontSize: 24, fontWeight: 900, textTransform: 'uppercase' }}>
+-                      {latestEvent.genlayer_verdict?.replace('_', ' ')}
+-                    </h4>
+-                    <p style={{ margin: 0, color: '#a1a1aa', fontSize: 14 }}>Veredicto autónomo y auditable vía Smart Contracts inteligentes.</p>
+-                  </div>
+-                ) : (
+-                  <p style={{ margin: 0, color: '#4b5563', fontSize: 15 }}>Esperando consenso de IA...</p>
+-                )}
+-              </div>
+-            </div>
+-          </div>
+-
+-          {/* Right Column: Metrics */}
+-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+-            <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 30, color: '#f59e0b' }}>Impacto Inmediato</h2>
+-            
+-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 40 }}>
+-              <div style={{ backgroundColor: '#161925', padding: 24, borderRadius: 16, border: '1px solid #272a38' }}>
+-                <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', marginBottom: 8 }}>$2.1M <span style={{fontSize: 20}}>USD</span></div>
+-                <div style={{ fontSize: 14, color: '#a1a1aa', lineHeight: 1.4 }}>Valor promedio robado por año por empresa en Argentina.</div>
+-              </div>
+-              <div style={{ backgroundColor: '#161925', padding: 24, borderRadius: 16, border: '1px solid #272a38' }}>
+-                <div style={{ fontSize: 36, fontWeight: 800, color: '#10b981', marginBottom: 8 }}>47 <span style={{fontSize: 20}}>min</span></div>
+-                <div style={{ fontSize: 14, color: '#a1a1aa', lineHeight: 1.4 }}>Tiempo de resolución promedio con Esta Todo (vs. 6 meses).</div>
+-              </div>
+-              <div style={{ backgroundColor: '#161925', padding: 24, borderRadius: 16, border: '1px solid #272a38' }}>
+-                <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', marginBottom: 8 }}>100%</div>
+-                <div style={{ fontSize: 14, color: '#a1a1aa', lineHeight: 1.4 }}>Evidencia inmutable con 0% de posibilidades de alteración.</div>
+-              </div>
+-              <div style={{ backgroundColor: '#161925', padding: 24, borderRadius: 16, border: '1px solid #272a38' }}>
+-                <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', marginBottom: 8 }}>3</div>
+-                <div style={{ fontSize: 14, color: '#a1a1aa', lineHeight: 1.4 }}>Blockchains integradas: Avalanche L1, Genlayer e IPFS.</div>
+-              </div>
+-            </div>
+-
+-            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'center' }}>
+-              <Link href="/live-map" style={{
+-                display: 'block',
+-                width: '100%',
+-                padding: '24px',
+-                backgroundColor: '#f59e0b',
+-                color: '#000',
+-                textAlign: 'center',
+-                textDecoration: 'none',
+-                fontSize: 20,
+-                fontWeight: 800,
+-                borderRadius: 16,
+-                transition: 'transform 0.2s',
+-              }}
+-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+-              >
+-                VER DEMO EN VIVO →
+-              </Link>
+-            </div>
+-          </div>
+-        </div>
+-      </div>
+-
+-      {/* Video Modal */}
+-      {showVideo && (
+-        <div style={{
+-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+-          backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999,
+-          display: 'flex', alignItems: 'center', justifyContent: 'center'
+-        }}>
+-          <div style={{ backgroundColor: '#161925', padding: 20, borderRadius: 16, maxWidth: 800, width: '100%' }}>
+-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+-              <h3 style={{ margin: 0, color: '#fff' }}>Evidencia del Incidente</h3>
+-              <button 
+-                onClick={() => setShowVideo(false)}
+-                style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: 24, cursor: 'pointer' }}
+-              >
+-                ✕
+-              </button>
+-            </div>
+-            <video 
+-              src="http://localhost:8001/api/media/video_robo.mp4" 
+-              controls 
+-              autoPlay 
+-              style={{ width: '100%', borderRadius: 8, border: '1px solid #272a38' }}
+-            />
+-          </div>
+-        </div>
+-      )}
+-    </div>
+-  );
+-}
+diff --git a/frontend/app/live-map/page.tsx b/frontend/app/live-map/page.tsx
+index baadcc3..5fefe43 100644
+--- a/frontend/app/live-map/page.tsx
++++ b/frontend/app/live-map/page.tsx
+@@ -1,15 +1,38 @@
+ 'use client';
+ import dynamic from 'next/dynamic';
+ 
+-const LiveMap = dynamic(() => import('@/components/map/LiveMap'), {
+-  ssr: false,
+-  loading: () => (
+-    <div style={{ height: 'calc(100vh - 48px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text-3)', fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: '0.1em' }}>
+-      INICIALIZANDO MAPA...
+-    </div>
+-  ),
+-});
++const LiveMap = dynamic(
++  () => import('@/components/map/LiveMapDeckGL'),
++  {
++    ssr: false,
++    loading: () => (
++      <div style={{
++        width: '100%',
++        height: '100%',
++        background: '#080e1a',
++        display: 'flex',
++        alignItems: 'center',
++        justifyContent: 'center',
++        color: '#06B6D4',
++        fontSize: '13px',
++        fontFamily: 'monospace',
++        letterSpacing: '0.15em',
++      }}>
++        INICIALIZANDO SISTEMA DE MONITOREO...
++      </div>
++    ),
++  }
++);
+ 
+ export default function LiveMapPage() {
+-  return <LiveMap />;
++  return (
++    <div style={{
++      width: '100%',
++      height: 'calc(100vh - 48px)',
++      position: 'relative',
++      overflow: 'hidden',
++    }}>
++      <LiveMap />
++    </div>
++  );
+ }
+diff --git a/frontend/app/page.tsx b/frontend/app/page.tsx
+index 53f35f4..45cd0dc 100644
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -209,18 +209,6 @@ export default function LandingPage() {
+               onMouseEnter={e => (e.currentTarget.style.background = '#1D4ED8')}
+               onMouseLeave={e => (e.currentTarget.style.background = '#2563EB')}
+             >Comenzar gratis →</Link>
+-            <Link href="/demo" style={{
+-              display: 'inline-block',
+-              padding: '14px 32px',
+-              background: 'transparent',
+-              color: '#06B6D4',
+-              fontWeight: 600,
+-              fontSize: 16,
+-              borderRadius: 8,
+-              border: '1px solid #06B6D4',
+-              textDecoration: 'none',
+-              transition: 'all 0.2s',
+-            }}>Ver demo en vivo</Link>
+           </div>
+         </div>
+ 
+@@ -417,7 +405,7 @@ export default function LandingPage() {
+             <span>Construido en Argentina 🇦🇷</span>
+           </div>
+           <div style={{ display: 'flex', gap: 24 }}>
+-            {[{ label: 'Demo', href: '/demo' }, { label: 'Documentación', href: '#' }, { label: 'Contacto', href: '#' }].map(({ label, href }) => (
++            {[{ label: 'Documentación', href: '#' }, { label: 'Contacto', href: '#' }].map(({ label, href }) => (
+               <Link key={label} href={href} style={{ color: '#94A3B8', fontSize: 14, textDecoration: 'none' }}>{label}</Link>
+             ))}
+           </div>
+diff --git a/frontend/app/register/page.tsx b/frontend/app/register/page.tsx
+index 1ebb8a3..1dc7e36 100644
+--- a/frontend/app/register/page.tsx
++++ b/frontend/app/register/page.tsx
+@@ -284,8 +284,8 @@ export default function RegisterPage() {
+               }}>
+                 {status.msg}
+                 {status.type === 'error' && status.msg.includes('iniciar sesión') && (
+-                  <Link href="/login" style={{ color: '#06B6D4', marginLeft: 6, textDecoration: 'underline' }}>
+-                    Iniciar sesión
++                  <Link href="/live-map" style={{ color: '#06B6D4', marginLeft: 6, textDecoration: 'underline' }}>
++                    Ir al dashboard
+                   </Link>
+                 )}
+               </div>
+@@ -328,7 +328,7 @@ export default function RegisterPage() {
+ 
+             <p style={{ textAlign: 'center', fontSize: 13, color: '#64748B', margin: 0 }}>
+               ¿Ya tenés cuenta?{' '}
+-              <Link href="/demo" style={{ color: '#06B6D4', textDecoration: 'none' }}>
++              <Link href="/live-map" style={{ color: '#06B6D4', textDecoration: 'none' }}>
+                 Ir al dashboard
+               </Link>
+             </p>
+diff --git a/frontend/components/layout/AppLayout.tsx b/frontend/components/layout/AppLayout.tsx
+index 2633e49..4d524cc 100644
+--- a/frontend/components/layout/AppLayout.tsx
++++ b/frontend/components/layout/AppLayout.tsx
+@@ -9,7 +9,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
+   const pathname = usePathname();
+   
+   // Dashboard routes that require Sidebar and TopBar
+-  const dashboardRoutes = ['/live-map', '/fleet', '/dispatch', '/stock', '/events', '/demo'];
++  const dashboardRoutes = ['/live-map', '/fleet', '/dispatch', '/stock', '/events'];
+   const isDashboard = dashboardRoutes.some(route => pathname?.startsWith(route) || pathname === route);
+ 
+   if (!isDashboard) {
+diff --git a/frontend/components/map/LiveMap.tsx b/frontend/components/map/LiveMap.tsx
+deleted file mode 100644
+index a125174..0000000
+--- a/frontend/components/map/LiveMap.tsx
++++ /dev/null
+@@ -1,536 +0,0 @@
+-'use client';
+-import React, { useState, useEffect } from 'react';
+-import { MapContainer, TileLayer, CircleMarker, Polyline, Polygon, GeoJSON, Popup, Tooltip, Marker, Rectangle } from 'react-leaflet';
+-import 'leaflet/dist/leaflet.css';
+-import L from 'leaflet';
+-import { useStore } from '@/lib/store';
+-import { TRUCKS, ROUTE_POLYLINES, formatARS, getStatusBadge, Truck, SGEvent } from '@/lib/types';
+-
+-// Continent outline — faint context layer
+-const SOUTH_AMERICA_OUTLINE: [number, number][] = [
+-  [12.5, -72], [11, -74], [8, -77], [5, -77], [1, -79],
+-  [-2, -80], [-5, -81], [-8, -79], [-11, -77], [-14, -76],
+-  [-17, -75], [-19, -70], [-22, -70], [-24, -70], [-26, -70],
+-  [-28, -71], [-30, -71], [-33, -72], [-36, -73], [-38, -73],
+-  [-40, -73], [-42, -74], [-44, -66], [-46, -67], [-48, -69],
+-  [-50, -69], [-52, -70], [-54, -68], [-55, -65], [-56, -68],
+-  [-54, -71], [-51, -75], [-48, -75], [-44, -77], [-41, -73],
+-  [-38, -73], [-34, -53], [-30, -49], [-25, -47],
+-  [-22, -43], [-19, -39], [-15, -39], [-12, -38],
+-  [-8, -35], [-5, -35], [-2, -40], [0, -50],
+-  [2, -52], [5, -52], [7, -60], [7, -62],
+-  [6, -67], [5, -72], [3, -77], [1, -79],
+-  [8, -77], [11, -74], [12.5, -72]
+-];
+-
+-
+-// Fix Leaflet default icon issue with webpack/Next.js
+-if (typeof window !== 'undefined') {
+-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-  delete (L.Icon.Default.prototype as any)._getIconUrl;
+-  L.Icon.Default.mergeOptions({
+-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+-  });
+-}
+-
+-function getTruckFill(t: Truck): string {
+-  if (t.incidents > 0 || t.status === 'incidente') return '#EF4444';
+-  if (t.status === 'en_ruta') return '#10B981';
+-  return '#F59E0B';
+-}
+-
+-function getTruckRadius(t: Truck): number {
+-  return 14;
+-}
+-
+-interface IncidentDot {
+-  id: string;
+-  event: SGEvent;
+-  lat: number;
+-  lng: number;
+-}
+-
+-export default function LiveMap() {
+-  const { incidents } = useStore();
+-  const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null);
+-  const [selectedDot, setSelectedDot] = useState<IncidentDot | null>(null);
+-  const [escalating, setEscalating] = useState(false);
+-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-  const [argentinaGeo, setArgentinaGeo] = useState<any>(null);
+-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-  const [provinciasGeo, setProvinciasGeo] = useState<any>(null);
+-  // Use a seed-stable jitter per incident so dots don't jump on re-render
+-  const [dotPositions] = useState<Map<string, { lat: number; lng: number }>>(() => new Map());
+-
+-  // 1. Único array fuente de verdad para los datos de los camiones
+-  const trucksData = TRUCKS.map(t => ({
+-    id: t.id,
+-    position: [t.coords.lat, t.coords.lng] as [number, number],
+-    originalTruck: t
+-  }));
+-
+-  useEffect(() => {
+-    fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries/ARG.geo.json')
+-      .then(r => r.json())
+-      .then(data => setArgentinaGeo(data))
+-      .catch(() => {});
+-
+-    fetch('https://raw.githubusercontent.com/mgubary/argentina-geojson/master/argentina_provincias.json')
+-      .then(r => r.json())
+-      .then(data => setProvinciasGeo(data))
+-      .catch(() => {});
+-  }, []);
+-
+-  const incidentDots: IncidentDot[] = incidents.map((inc) => {
+-    const truck = TRUCKS.find((t) => t.cameraId === inc.event.camera_id);
+-    const base = truck?.coords ?? { lat: -34.6037, lng: -58.3816 };
+-    if (!dotPositions.has(inc.id)) {
+-      dotPositions.set(inc.id, {
+-        lat: base.lat + (Math.random() - 0.5) * 0.05,
+-        lng: base.lng + (Math.random() - 0.5) * 0.05,
+-      });
+-    }
+-    const pos = dotPositions.get(inc.id)!;
+-    return { id: inc.id, event: inc.event, lat: pos.lat, lng: pos.lng };
+-  });
+-
+-  const handleEscalate = async (eventId: string) => {
+-    if (escalating) return;
+-    setEscalating(true);
+-    try {
+-      await fetch(`http://localhost:8001/api/events/${eventId}/dispute`, { method: 'POST' });
+-    } finally {
+-      setEscalating(false);
+-    }
+-  };
+-
+-  // Build DivIcon for each truck
+-  const createTruckIcon = (truck: Truck) => {
+-    let color = '#10B981';
+-    let animationSpeed = '2.5s';
+-    // TRK-01 (or any with incidents>0) → red
+-    if (truck.incidents > 0 || truck.status === 'incidente') {
+-      color = '#EF4444';
+-      animationSpeed = '1.2s';
+-    } else if (truck.status === 'detenido') {
+-      color = '#F59E0B';
+-    }
+-
+-    const glowStyles = color === '#EF4444'
+-      ? `0 0 16px #EF4444, 0 0 32px #EF444460`
+-      : `0 0 14px ${color}, 0 0 28px ${color}60, 0 0 4px white`;
+-
+-    return L.divIcon({
+-      className: '',
+-      iconSize: [60, 60],
+-      iconAnchor: [30, 30],
+-      html: `
+-        <div style="position:relative;width:60px;height:60px;display:flex;align-items:center;justify-content:center;margin-left:-30px;margin-top:-30px">
+-          <div style="position:absolute;width:60px;height:60px;border-radius:50%;border:1px solid ${color}30;animation:radarPing ${animationSpeed} ease-out infinite"></div>
+-          <div style="position:absolute;width:40px;height:40px;border-radius:50%;border:1px solid ${color}60;animation:radarPing ${animationSpeed} ease-out infinite 0.8s"></div>
+-          <div style="position:absolute;width:16px;height:16px;border-radius:50%;background:${color};border:2px solid #0d1f14;box-shadow:${glowStyles}"></div>
+-          <div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(10,20,40,0.92);border:1px solid ${color}40;border-radius:3px;padding:2px 7px;font-size:10px;font-weight:700;color:${color};letter-spacing:0.08em;font-family:monospace">${truck.id}</div>
+-        </div>
+-      `,
+-    });
+-  };
+-
+-  const createIncidentIcon = () => L.divIcon({
+-    className: '',
+-    iconAnchor: [7, 7],
+-    html: `
+-      <style>
+-        @keyframes estatodo-pulse {
+-          0%,100% { box-shadow: 0 0 10px #EF4444, 0 0 20px #EF4444; transform: scale(1); }
+-          50% { box-shadow: 0 0 25px #EF4444, 0 0 40px #EF444480; transform: scale(1.3); }
+-        }
+-      </style>
+-      <div style="
+-        width: 12px; height: 12px;
+-        border-radius: 50%;
+-        background: #EF4444;
+-        border: 1px solid white;
+-        animation: estatodo-pulse 0.8s infinite;
+-      "></div>`,
+-  });
+-
+-  return (
+-    <div style={{ display: 'flex', height: 'calc(100vh - 48px)' }}>
+-      <style>{`
+-        @keyframes radarPing {
+-          0% { transform: scale(0.6); opacity: 0.8; }
+-          100% { transform: scale(2); opacity: 0; }
+-        }
+-        @keyframes dashMove {
+-          to { stroke-dashoffset: -100; }
+-        }
+-        .animated-route path {
+-          animation: dashMove 3s linear infinite;
+-        }
+-        .custom-map-container .leaflet-tile-pane {
+-          filter: brightness(0.7) contrast(1.3) saturate(1.5) hue-rotate(-15deg);
+-        }
+-      `}</style>
+-      {/* Map container — must have explicit height */}
+-      <div style={{ flex: 1, height: '100%', position: 'relative' }}>
+-        {/* Grid overlay */}
+-        <div style={{
+-          position: 'absolute', inset: 0, zIndex: 500, pointerEvents: 'none',
+-          backgroundImage: 'linear-gradient(rgba(6,182,212,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.06) 1px, transparent 1px)',
+-          backgroundSize: '65px 65px'
+-        }} />
+-        {/* Edge vignette — darkens borders to look like war room screen */}
+-        <div style={{
+-          position: 'absolute', inset: 0, zIndex: 501, pointerEvents: 'none',
+-          background: 'radial-gradient(ellipse at center, transparent 55%, rgba(5,13,26,0.85) 100%)'
+-        }} />
+-        <MapContainer
+-          className="custom-map-container"
+-          center={[-34, -62]}
+-          zoom={6}
+-          style={{ height: '100%', width: '100%' }}
+-          zoomControl={true}
+-        >
+-          <TileLayer
+-            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+-            attribution="&copy; Esri"
+-          />
+-          {/* Labels overlay for city names (faint) */}
+-          <TileLayer
+-            url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+-            opacity={0.4}
+-          />
+-          <Rectangle 
+-            bounds={[[-60, -80], [0, -40]]} 
+-            pathOptions={{ color: 'transparent', fillColor: '#020810', fillOpacity: 0.25 }} 
+-          />
+-
+-          {/* === SOUTH AMERICA OUTLINE — faint dashed blue context layer === */}
+-          <Polygon
+-            positions={SOUTH_AMERICA_OUTLINE}
+-            pathOptions={{ color: '#1e3a5f', weight: 3, opacity: 0.5, fillOpacity: 0, dashArray: '8 10' }}
+-          />
+-          <Polygon
+-            positions={SOUTH_AMERICA_OUTLINE}
+-            pathOptions={{ color: '#3b82f6', weight: 1, opacity: 0.3, fillOpacity: 0, dashArray: '8 10' }}
+-          />
+-
+-          {/* === PROVINCE BORDERS — subtle tactical segmentation === */}
+-          {provinciasGeo && (
+-            <GeoJSON
+-              data={provinciasGeo}
+-              style={{ color: '#F59E0B', weight: 0.8, opacity: 0.4, fillOpacity: 0 }}
+-            />
+-          )}
+-
+-          {/* === ARGENTINA GEOJSON BORDER — official outline, orange neon === */}
+-          {argentinaGeo && (
+-            <>
+-              {/* Glow halo */}
+-              <GeoJSON
+-                key="arg-glow"
+-                data={argentinaGeo}
+-                style={{ color: '#F59E0B', weight: 6, opacity: 0.15, fillOpacity: 0 }}
+-              />
+-              {/* Neon border line */}
+-              <GeoJSON
+-                key="arg-border"
+-                data={argentinaGeo}
+-                style={{ color: '#F59E0B', weight: 1.5, opacity: 1, fillOpacity: 0 }}
+-              />
+-            </>
+-          )}
+-
+-          {/* === CITY DOTS — minimal orange beacons === */}
+-          {[
+-            { name: 'Buenos Aires', pos: [-34.6, -58.4] as [number,number] },
+-            { name: 'Córdoba',       pos: [-31.4, -64.2] as [number,number] },
+-            { name: 'Mendoza',       pos: [-32.9, -68.8] as [number,number] },
+-            { name: 'Rosario',       pos: [-32.9, -60.7] as [number,number] },
+-            { name: 'Tucumán',       pos: [-26.8, -65.2] as [number,number] },
+-            { name: 'Salta',         pos: [-24.8, -65.4] as [number,number] },
+-          ].map(({ name, pos }) => (
+-            <Marker 
+-              key={name}
+-              position={pos} 
+-              icon={L.divIcon({
+-                className: '',
+-                html: `<div style="width:6px;height:6px;background:#F59E0B;border-radius:50%;box-shadow:0 0 8px 2px #F59E0B80"></div>`,
+-                iconAnchor: [3, 3]
+-              })}
+-            />
+-          ))}
+-
+-          {/* Convoy line — Electric Cyan Glow (Stacked Polylines) */}
+-          {/* Glow difuso por debajo */}
+-          <Polyline
+-            positions={trucksData.map(t => t.position)}
+-            pathOptions={{ color: '#00ffff', weight: 8, opacity: 0.15 }}
+-          />
+-          {/* Línea principal */}
+-          <Polyline
+-            positions={trucksData.map(t => t.position)}
+-            pathOptions={{ color: '#00ffff', weight: 2, opacity: 0.9 }}
+-          />
+-
+-          {/* Truck markers — Custom orange glow DivIcon */}
+-          {trucksData.map((t) => {
+-            const color = t.originalTruck.incidents > 0 ? '#EF4444' : '#ff6600';
+-            const icon = L.divIcon({
+-              className: '',
+-              html: `
+-                <div style="
+-                  width: 14px;
+-                  height: 14px;
+-                  background: ${color};
+-                  border-radius: 50%;
+-                  box-shadow: 0 0 6px 3px ${color}, 0 0 20px 6px ${color}88;
+-                  position: relative;
+-                ">
+-                  <div style="position:absolute;top:-24px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(10,20,40,0.92);border:1px solid ${color}40;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:${color};letter-spacing:0.05em;font-family:monospace">${t.id}</div>
+-                </div>
+-              `,
+-              iconAnchor: [7, 7],
+-            });
+-
+-            return (
+-              <Marker
+-                key={t.id}
+-                position={t.position}
+-                icon={icon}
+-                eventHandlers={{
+-                  click: () => { setSelectedTruck(t.originalTruck); setSelectedDot(null); },
+-                }}
+-              />
+-            );
+-          })}
+-
+-          {/* Incident dots from WebSocket — DivIcon with fast pulse */}
+-          {incidentDots.map((dot) => (
+-            <Marker
+-              key={dot.id}
+-              position={[dot.lat, dot.lng]}
+-              icon={createIncidentIcon()}
+-              eventHandlers={{ click: () => { setSelectedDot(dot); setSelectedTruck(null); } }}
+-            />
+-          ))}
+-        </MapContainer>
+-
+-        {/* Incident dot modal — absolute inside the map div, NOT inside MapContainer */}
+-        {selectedDot && (
+-          <div style={{
+-            position: 'absolute', top: '50%', left: '50%',
+-            transform: 'translate(-50%, -50%)',
+-            zIndex: 1000,
+-            background: 'var(--bg-surface)',
+-            border: '1px solid var(--border)',
+-            borderTop: '2px solid var(--danger)',
+-            borderRadius: 10, padding: 20, width: 360,
+-            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+-          }}>
+-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+-              <div>
+-                <span className="badge badge-red" style={{ marginBottom: 6, display: 'block', width: 'fit-content' }}>
+-                  {selectedDot.event.type}
+-                </span>
+-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: "'IBM Plex Mono',monospace" }}>
+-                  {new Date(selectedDot.event.timestamp || Date.now()).toLocaleString('es-AR')}
+-                </div>
+-              </div>
+-              <button onClick={() => setSelectedDot(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+-            </div>
+-
+-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, marginBottom: 16 }}>
+-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+-                <span style={{ color: 'var(--text-secondary)' }}>Hash</span>
+-                <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: 'var(--cyber-teal)' }}>
+-                  {selectedDot.event.hash_sha256?.substring(0, 16) ?? '—'}…
+-                </span>
+-              </div>
+-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+-                <span style={{ color: 'var(--text-secondary)' }}>Blockchain</span>
+-                <span className={selectedDot.event.blockchain_tx ? 'badge badge-blue' : 'badge badge-amber'}>
+-                  {selectedDot.event.blockchain_status || 'pending'}
+-                </span>
+-              </div>
+-              {selectedDot.event.genlayer_verdict && (
+-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+-                  <span style={{ color: 'var(--text-secondary)' }}>Genlayer</span>
+-                  <span className="badge badge-red">{selectedDot.event.genlayer_verdict}</span>
+-                </div>
+-              )}
+-            </div>
+-
+-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+-              <button
+-                className="sg-btn sg-btn-web3"
+-                style={{ width: '100%', justifyContent: 'center' }}
+-                onClick={() => handleEscalate(selectedDot.event.id)}
+-                disabled={escalating}
+-              >
+-                {escalating ? 'Escalando...' : 'Sellar en Genlayer'}
+-              </button>
+-              <a
+-                href={`/events/${selectedDot.event.id}`}
+-                className="sg-btn sg-btn-ghost"
+-                style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}
+-              >
+-                Ver evidencia →
+-              </a>
+-            </div>
+-          </div>
+-        )}
+-      </div>
+-
+-      {/* Right panel */}
+-      <div style={{ width: 260, height: '100%', background: 'var(--bg-surface)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+-        {selectedTruck ? (
+-          <TruckPanel truck={selectedTruck} onClose={() => setSelectedTruck(null)} />
+-        ) : (
+-          <AlertsPanel incidents={incidents} onSelectDot={(inc) => {
+-            const t = TRUCKS.find((t) => t.cameraId === inc.event.camera_id);
+-            const pos = dotPositions.get(inc.id) ?? { lat: t?.coords.lat ?? -34.60, lng: t?.coords.lng ?? -58.38 };
+-            setSelectedDot({ id: inc.id, event: inc.event, lat: pos.lat, lng: pos.lng });
+-          }} />
+-        )}
+-      </div>
+-    </div>
+-  );
+-}
+-
+-/* ————— Sub-components ————— */
+-
+-function TruckPanel({ truck, onClose }: { truck: Truck; onClose: () => void }) {
+-  return (
+-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+-      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+-        <div>
+-          <div style={{ fontSize: 15, fontWeight: 700 }}>{truck.id}</div>
+-          <div style={{ fontSize: 12, fontFamily: "'IBM Plex Mono',monospace", color: 'var(--text-secondary)' }}>{truck.plate}</div>
+-        </div>
+-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+-          <span className={getStatusBadge(truck.status)}>{truck.status.replace('_', ' ')}</span>
+-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+-        </div>
+-      </div>
+-
+-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+-        <PanelSection title="Conductor">
+-          <PanelRow label="Nombre" value={truck.driver.name} />
+-          <PanelRow label="DNI" value={truck.driver.dni} mono />
+-        </PanelSection>
+-
+-        <PanelSection title="Carga">
+-          <PanelRow label="Descripción" value={truck.cargo.description} />
+-          <PanelRow label="Valor" value={formatARS(truck.cargo.value)} accent />
+-          <PanelRow label="Remito" value={truck.cargo.remito} mono />
+-        </PanelSection>
+-
+-        <PanelSection title="Ruta">
+-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+-            <span>{truck.route.origin}</span>
+-            <span style={{ color: 'var(--text-muted)' }}>→</span>
+-            <span>{truck.route.destination}</span>
+-          </div>
+-          <div style={{ marginTop: 8, height: 4, background: 'var(--border)', borderRadius: 2 }}>
+-            <div style={{ width: '65%', height: '100%', background: 'var(--brand-blue)', borderRadius: 2 }} />
+-          </div>
+-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>65% completado</div>
+-        </PanelSection>
+-
+-        {truck.incidents > 0 && (
+-          <PanelSection title={`Incidentes (${truck.incidents})`}>
+-            <div style={{ fontSize: 12, color: 'var(--danger)' }}>{truck.incidents} alerta{truck.incidents !== 1 ? 's' : ''} registrada{truck.incidents !== 1 ? 's' : ''}</div>
+-          </PanelSection>
+-        )}
+-
+-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+-          <a href={`/fleet/${truck.id}`} className="sg-btn sg-btn-primary" style={{ justifyContent: 'center', textDecoration: 'none' }}>
+-            Ver ruta completa →
+-          </a>
+-          <a href="/events" className="sg-btn sg-btn-ghost" style={{ justifyContent: 'center', textDecoration: 'none' }}>
+-            Ver historial
+-          </a>
+-        </div>
+-      </div>
+-    </div>
+-  );
+-}
+-
+-function AlertsPanel({ incidents, onSelectDot }: { incidents: any[]; onSelectDot: (i: any) => void }) {
+-  const { wsConnected } = useStore();
+-  return (
+-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'linear-gradient(180deg, #080e1a 0%, #0a1628 100%)', borderLeft: '1px solid #06B6D415' }}>
+-      <div style={{ padding: '14px 16px', borderBottom: '1px solid #06B6D415', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+-        <span style={{ fontSize: 9, letterSpacing: '0.2em', color: '#06B6D4', textTransform: 'uppercase', fontWeight: 600 }}>
+-          Últimas Alertas
+-        </span>
+-        {wsConnected ? (
+-          <span style={{ fontSize: 9, letterSpacing: '0.15em', color: '#10B981', fontWeight: 600 }}>
+-            ● SISTEMA ACTIVO
+-          </span>
+-        ) : (
+-          <span style={{ fontSize: 9, letterSpacing: '0.15em', color: '#F59E0B', fontWeight: 600, animation: 'radarPing 1.5s infinite' }}>
+-            ● CONECTANDO...
+-          </span>
+-        )}
+-      </div>
+-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0', display: 'flex', flexDirection: 'column' }}>
+-        {incidents.length === 0 ? (
+-          <div style={{ padding: '30px 20px', textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+-            Sin alertas recientes.
+-          </div>
+-        ) : (
+-          incidents.slice(0, 8).map((inc, i) => {
+-            const truck = TRUCKS.find((t) => t.cameraId === inc.event.camera_id);
+-            return (
+-              <div
+-                key={inc.id + i}
+-                onClick={() => onSelectDot(inc)}
+-                style={{
+-                  background: 'rgba(30,41,59,0.6)', border: '0.5px solid #EF444430', borderLeft: '2px solid #EF4444',
+-                  borderRadius: 4, padding: '8px 12px', margin: '4px 8px', cursor: 'pointer',
+-                  transition: 'border-color 0.15s',
+-                }}
+-              >
+-                <div style={{ fontSize: 10, color: '#EF4444', fontWeight: 700, marginBottom: 4 }}>
+-                  ⚠ INCIDENTE · {truck?.id ?? 'Desconocido'}
+-                </div>
+-                <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 6, lineHeight: 1.3 }}>
+-                  {inc.event.incident_description ?? `Incidente detectado en cámara ${inc.event.camera_id}`}
+-                </div>
+-                <div style={{ fontSize: 10, fontFamily: "'IBM Plex Mono',monospace", color: '#06B6D4' }}>
+-                  {inc.event.hash_sha256 ? `${inc.event.hash_sha256.substring(0,24)}...` : 'Sin hash'}
+-                </div>
+-              </div>
+-            );
+-          })
+-        )}
+-      </div>
+-    </div>
+-  );
+-}
+-
+-function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
+-  return (
+-    <div>
+-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>{title}</div>
+-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{children}</div>
+-    </div>
+-  );
+-}
+-
+-function PanelRow({ label, value, mono, accent }: { label: string; value: string; mono?: boolean; accent?: boolean }) {
+-  return (
+-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+-      <span style={{
+-        color: accent ? 'var(--brand-blue)' : 'var(--text-primary)',
+-        fontFamily: mono ? "'IBM Plex Mono',monospace" : undefined,
+-        fontWeight: accent ? 600 : undefined,
+-      }}>{value}</span>
+-    </div>
+-  );
+-}
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index 8e6cec0..74bd611 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -8,16 +8,18 @@
+       "name": "temp_frontend",
+       "version": "0.1.0",
+       "dependencies": {
++        "@deck.gl/geo-layers": "^9.2.11",
++        "@deck.gl/layers": "^9.2.11",
++        "@deck.gl/react": "^9.2.11",
+         "@supabase/supabase-js": "^2.99.3",
+-        "@types/leaflet": "^1.9.21",
+         "clsx": "^2.1.1",
+         "date-fns": "^4.1.0",
+-        "leaflet": "^1.9.4",
+         "lucide-react": "^0.577.0",
++        "mapbox-gl": "^3.20.0",
+         "next": "16.2.1",
+         "react": "19.2.4",
+         "react-dom": "19.2.4",
+-        "react-leaflet": "^5.0.0",
++        "react-map-gl": "^8.1.0",
+         "socket.io-client": "^4.8.3",
+         "tailwind-merge": "^3.5.0",
+         "zustand": "^5.0.12"
+@@ -286,6 +288,151 @@
+         "node": ">=6.9.0"
+       }
+     },
++    "node_modules/@deck.gl/core": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/core/-/core-9.2.11.tgz",
++      "integrity": "sha512-lpdxXQuFSkd6ET7M6QxPI8QMhsLRY6vzLyk83sPGFb7JSb4OhrNHYt9sfIhcA/hxJW7bdBSMWWphf2GvQetVuA==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@loaders.gl/core": "~4.3.4",
++        "@loaders.gl/images": "~4.3.4",
++        "@luma.gl/constants": "~9.2.6",
++        "@luma.gl/core": "~9.2.6",
++        "@luma.gl/engine": "~9.2.6",
++        "@luma.gl/shadertools": "~9.2.6",
++        "@luma.gl/webgl": "~9.2.6",
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/sun": "^4.1.0",
++        "@math.gl/types": "^4.1.0",
++        "@math.gl/web-mercator": "^4.1.0",
++        "@probe.gl/env": "^4.1.1",
++        "@probe.gl/log": "^4.1.1",
++        "@probe.gl/stats": "^4.1.1",
++        "@types/offscreencanvas": "^2019.6.4",
++        "gl-matrix": "^3.0.0",
++        "mjolnir.js": "^3.0.0"
++      }
++    },
++    "node_modules/@deck.gl/extensions": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/extensions/-/extensions-9.2.11.tgz",
++      "integrity": "sha512-zlpM4Bg1ifBziW1Juiii9NY5gyW2rEhyVTWnhagH/bpTCZ2E73OhnToYt1ouqmoxL6lMtIjhRXz6LPb7tJbHHQ==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@luma.gl/constants": "~9.2.6",
++        "@luma.gl/shadertools": "~9.2.6",
++        "@math.gl/core": "^4.1.0"
++      },
++      "peerDependencies": {
++        "@deck.gl/core": "~9.2.0",
++        "@luma.gl/core": "~9.2.6",
++        "@luma.gl/engine": "~9.2.6"
++      }
++    },
++    "node_modules/@deck.gl/geo-layers": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/geo-layers/-/geo-layers-9.2.11.tgz",
++      "integrity": "sha512-Mr3yvKyZMPmQ3ho0hSqcJu1p7a881RqQaq/dRaPs2VP56UAkfk1e10zxXnrZ9/Dmo2MR5PH0j8tkOoGR3zKbfA==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/3d-tiles": "~4.3.4",
++        "@loaders.gl/gis": "~4.3.4",
++        "@loaders.gl/loader-utils": "~4.3.4",
++        "@loaders.gl/mvt": "~4.3.4",
++        "@loaders.gl/schema": "~4.3.4",
++        "@loaders.gl/terrain": "~4.3.4",
++        "@loaders.gl/tiles": "~4.3.4",
++        "@loaders.gl/wms": "~4.3.4",
++        "@luma.gl/gltf": "~9.2.6",
++        "@luma.gl/shadertools": "~9.2.6",
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/culling": "^4.1.0",
++        "@math.gl/web-mercator": "^4.1.0",
++        "@types/geojson": "^7946.0.8",
++        "a5-js": "^0.5.0",
++        "h3-js": "^4.1.0",
++        "long": "^3.2.0"
++      },
++      "peerDependencies": {
++        "@deck.gl/core": "~9.2.0",
++        "@deck.gl/extensions": "~9.2.0",
++        "@deck.gl/layers": "~9.2.0",
++        "@deck.gl/mesh-layers": "~9.2.0",
++        "@loaders.gl/core": "~4.3.4",
++        "@luma.gl/core": "~9.2.6",
++        "@luma.gl/engine": "~9.2.6"
++      }
++    },
++    "node_modules/@deck.gl/layers": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/layers/-/layers-9.2.11.tgz",
++      "integrity": "sha512-2FSb0Qa6YR+Rg6GWhYOGTUug3vtZ4uKcFdnrdiJoVXGyibKJMScKZIsivY0r/yQQZsaBjYqty5QuVJvdtEHxSA==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/images": "~4.3.4",
++        "@loaders.gl/schema": "~4.3.4",
++        "@luma.gl/shadertools": "~9.2.6",
++        "@mapbox/tiny-sdf": "^2.0.5",
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/polygon": "^4.1.0",
++        "@math.gl/web-mercator": "^4.1.0",
++        "earcut": "^2.2.4"
++      },
++      "peerDependencies": {
++        "@deck.gl/core": "~9.2.0",
++        "@loaders.gl/core": "~4.3.4",
++        "@luma.gl/core": "~9.2.6",
++        "@luma.gl/engine": "~9.2.6"
++      }
++    },
++    "node_modules/@deck.gl/mesh-layers": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/mesh-layers/-/mesh-layers-9.2.11.tgz",
++      "integrity": "sha512-zPB7TtnPXB3tOEoOfcOkNZo7coIq/ukIQa8HIUQLLiOE8AVSQfz3kbMmMK6rUabXlQbgSw/I/j3kFSYRHg3NGg==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@loaders.gl/gltf": "~4.3.4",
++        "@loaders.gl/schema": "~4.3.4",
++        "@luma.gl/gltf": "~9.2.6",
++        "@luma.gl/shadertools": "~9.2.6"
++      },
++      "peerDependencies": {
++        "@deck.gl/core": "~9.2.0",
++        "@luma.gl/core": "~9.2.6",
++        "@luma.gl/engine": "~9.2.6",
++        "@luma.gl/gltf": "~9.2.6",
++        "@luma.gl/shadertools": "~9.2.6"
++      }
++    },
++    "node_modules/@deck.gl/react": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/react/-/react-9.2.11.tgz",
++      "integrity": "sha512-7xrXlM++3A7cKZdDKSW2/EPT6sc0ob7J24sTPaHe3YlIIFvCZTkQ1U1rAT9cN2gjhkI6XsE+TugUsqhx4TGwHQ==",
++      "license": "MIT",
++      "peerDependencies": {
++        "@deck.gl/core": "~9.2.0",
++        "@deck.gl/widgets": "~9.2.0",
++        "react": ">=16.3.0",
++        "react-dom": ">=16.3.0"
++      }
++    },
++    "node_modules/@deck.gl/widgets": {
++      "version": "9.2.11",
++      "resolved": "https://registry.npmjs.org/@deck.gl/widgets/-/widgets-9.2.11.tgz",
++      "integrity": "sha512-90HWlQPsiRyTPWR4aYfLwnYDrJdHG2mqCzRcyMUKewWBNQLu4upB//l4ewIkUeXXCzAprjjVeRnNb7wdYj2CXQ==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "preact": "^10.17.0"
++      },
++      "peerDependencies": {
++        "@deck.gl/core": "~9.2.0",
++        "@luma.gl/core": "~9.2.6"
++      }
++    },
+     "node_modules/@emnapi/core": {
+       "version": "1.9.1",
+       "resolved": "https://registry.npmjs.org/@emnapi/core/-/core-1.9.1.tgz",
+@@ -1031,6 +1178,524 @@
+         "@jridgewell/sourcemap-codec": "^1.4.14"
+       }
+     },
++    "node_modules/@loaders.gl/3d-tiles": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/3d-tiles/-/3d-tiles-4.3.4.tgz",
++      "integrity": "sha512-JQ3y3p/KlZP7lfobwON5t7H9WinXEYTvuo3SRQM8TBKhM+koEYZhvI2GwzoXx54MbBbY+s3fm1dq5UAAmaTsZw==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/compression": "4.3.4",
++        "@loaders.gl/crypto": "4.3.4",
++        "@loaders.gl/draco": "4.3.4",
++        "@loaders.gl/gltf": "4.3.4",
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/math": "4.3.4",
++        "@loaders.gl/tiles": "4.3.4",
++        "@loaders.gl/zip": "4.3.4",
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/culling": "^4.1.0",
++        "@math.gl/geospatial": "^4.1.0",
++        "@probe.gl/log": "^4.0.4",
++        "long": "^5.2.1"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/3d-tiles/node_modules/long": {
++      "version": "5.3.2",
++      "resolved": "https://registry.npmjs.org/long/-/long-5.3.2.tgz",
++      "integrity": "sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==",
++      "license": "Apache-2.0"
++    },
++    "node_modules/@loaders.gl/compression": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/compression/-/compression-4.3.4.tgz",
++      "integrity": "sha512-+o+5JqL9Sx8UCwdc2MTtjQiUHYQGJALHbYY/3CT+b9g/Emzwzez2Ggk9U9waRfdHiBCzEgRBivpWZEOAtkimXQ==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/worker-utils": "4.3.4",
++        "@types/brotli": "^1.3.0",
++        "@types/pako": "^1.0.1",
++        "fflate": "0.7.4",
++        "lzo-wasm": "^0.0.4",
++        "pako": "1.0.11",
++        "snappyjs": "^0.6.1"
++      },
++      "optionalDependencies": {
++        "brotli": "^1.3.2",
++        "lz4js": "^0.2.0",
++        "zstd-codec": "^0.1"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/core": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/core/-/core-4.3.4.tgz",
++      "integrity": "sha512-cG0C5fMZ1jyW6WCsf4LoHGvaIAJCEVA/ioqKoYRwoSfXkOf+17KupK1OUQyUCw5XoRn+oWA1FulJQOYlXnb9Gw==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@loaders.gl/worker-utils": "4.3.4",
++        "@probe.gl/log": "^4.0.2"
++      }
++    },
++    "node_modules/@loaders.gl/crypto": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/crypto/-/crypto-4.3.4.tgz",
++      "integrity": "sha512-3VS5FgB44nLOlAB9Q82VOQnT1IltwfRa1miE0mpHCe1prYu1M/dMnEyynusbrsp+eDs3EKbxpguIS9HUsFu5dQ==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/worker-utils": "4.3.4",
++        "@types/crypto-js": "^4.0.2"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/draco": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/draco/-/draco-4.3.4.tgz",
++      "integrity": "sha512-4Lx0rKmYENGspvcgV5XDpFD9o+NamXoazSSl9Oa3pjVVjo+HJuzCgrxTQYD/3JvRrolW/QRehZeWD/L/cEC6mw==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@loaders.gl/worker-utils": "4.3.4",
++        "draco3d": "1.5.7"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/gis": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/gis/-/gis-4.3.4.tgz",
++      "integrity": "sha512-8xub38lSWW7+ZXWuUcggk7agRHJUy6RdipLNKZ90eE0ZzLNGDstGD1qiBwkvqH0AkG+uz4B7Kkiptyl7w2Oa6g==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@mapbox/vector-tile": "^1.3.1",
++        "@math.gl/polygon": "^4.1.0",
++        "pbf": "^3.2.1"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/gltf": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/gltf/-/gltf-4.3.4.tgz",
++      "integrity": "sha512-EiUTiLGMfukLd9W98wMpKmw+hVRhQ0dJ37wdlXK98XPeGGB+zTQxCcQY+/BaMhsSpYt/OOJleHhTfwNr8RgzRg==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/draco": "4.3.4",
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@loaders.gl/textures": "4.3.4",
++        "@math.gl/core": "^4.1.0"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/images": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/images/-/images-4.3.4.tgz",
++      "integrity": "sha512-qgc33BaNsqN9cWa/xvcGvQ50wGDONgQQdzHCKDDKhV2w/uptZoR5iofJfuG8UUV2vUMMd82Uk9zbopRx2rS4Ag==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/loader-utils": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/loader-utils/-/loader-utils-4.3.4.tgz",
++      "integrity": "sha512-tjMZvlKQSaMl2qmYTAxg+ySR6zd6hQn5n3XaU8+Ehp90TD3WzxvDKOMNDqOa72fFmIV+KgPhcmIJTpq4lAdC4Q==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/schema": "4.3.4",
++        "@loaders.gl/worker-utils": "4.3.4",
++        "@probe.gl/log": "^4.0.2",
++        "@probe.gl/stats": "^4.0.2"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/math": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/math/-/math-4.3.4.tgz",
++      "integrity": "sha512-UJrlHys1fp9EUO4UMnqTCqvKvUjJVCbYZ2qAKD7tdGzHJYT8w/nsP7f/ZOYFc//JlfC3nq+5ogvmdpq2pyu3TA==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@math.gl/core": "^4.1.0"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/mvt": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/mvt/-/mvt-4.3.4.tgz",
++      "integrity": "sha512-9DrJX8RQf14htNtxsPIYvTso5dUce9WaJCWCIY/79KYE80Be6dhcEYMknxBS4w3+PAuImaAe66S5xo9B7Erm5A==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/gis": "4.3.4",
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@math.gl/polygon": "^4.1.0",
++        "@probe.gl/stats": "^4.0.0",
++        "pbf": "^3.2.1"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/schema": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/schema/-/schema-4.3.4.tgz",
++      "integrity": "sha512-1YTYoatgzr/6JTxqBLwDiD3AVGwQZheYiQwAimWdRBVB0JAzych7s1yBuE0CVEzj4JDPKOzVAz8KnU1TiBvJGw==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/geojson": "^7946.0.7"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/terrain": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/terrain/-/terrain-4.3.4.tgz",
++      "integrity": "sha512-JszbRJGnxL5Fh82uA2U8HgjlsIpzYoCNNjy3cFsgCaxi4/dvjz3BkLlBilR7JlbX8Ka+zlb4GAbDDChiXLMJ/g==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@mapbox/martini": "^0.2.0"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/textures": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/textures/-/textures-4.3.4.tgz",
++      "integrity": "sha512-arWIDjlE7JaDS6v9by7juLfxPGGnjT9JjleaXx3wq/PTp+psLOpGUywHXm38BNECos3MFEQK3/GFShWI+/dWPw==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@loaders.gl/worker-utils": "4.3.4",
++        "@math.gl/types": "^4.1.0",
++        "ktx-parse": "^0.7.0",
++        "texture-compressor": "^1.0.2"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/tiles": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/tiles/-/tiles-4.3.4.tgz",
++      "integrity": "sha512-oC0zJfyvGox6Ag9ABF8fxOkx9yEFVyzTa9ryHXl2BqLiQoR1v3p+0tIJcEbh5cnzHfoTZzUis1TEAZluPRsHBQ==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/math": "4.3.4",
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/culling": "^4.1.0",
++        "@math.gl/geospatial": "^4.1.0",
++        "@math.gl/web-mercator": "^4.1.0",
++        "@probe.gl/stats": "^4.0.2"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/wms": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/wms/-/wms-4.3.4.tgz",
++      "integrity": "sha512-yXF0wuYzJUdzAJQrhLIua6DnjOiBJusaY1j8gpvuH1VYs3mzvWlIRuZKeUd9mduQZKK88H2IzHZbj2RGOauq4w==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/images": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "@loaders.gl/xml": "4.3.4",
++        "@turf/rewind": "^5.1.5",
++        "deep-strict-equal": "^0.2.0"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/worker-utils": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/worker-utils/-/worker-utils-4.3.4.tgz",
++      "integrity": "sha512-EbsszrASgT85GH3B7jkx7YXfQyIYo/rlobwMx6V3ewETapPUwdSAInv+89flnk5n2eu2Lpdeh+2zS6PvqbL2RA==",
++      "license": "MIT",
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/xml": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/xml/-/xml-4.3.4.tgz",
++      "integrity": "sha512-p+y/KskajsvyM3a01BwUgjons/j/dUhniqd5y1p6keLOuwoHlY/TfTKd+XluqfyP14vFrdAHCZTnFCWLblN10w==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/loader-utils": "4.3.4",
++        "@loaders.gl/schema": "4.3.4",
++        "fast-xml-parser": "^4.2.5"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@loaders.gl/zip": {
++      "version": "4.3.4",
++      "resolved": "https://registry.npmjs.org/@loaders.gl/zip/-/zip-4.3.4.tgz",
++      "integrity": "sha512-bHY4XdKYJm3vl9087GMoxnUqSURwTxPPh6DlAGOmz6X9Mp3JyWuA2gk3tQ1UIuInfjXKph3WAUfGe6XRIs1sfw==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/compression": "4.3.4",
++        "@loaders.gl/crypto": "4.3.4",
++        "@loaders.gl/loader-utils": "4.3.4",
++        "jszip": "^3.1.5",
++        "md5": "^2.3.0"
++      },
++      "peerDependencies": {
++        "@loaders.gl/core": "^4.3.0"
++      }
++    },
++    "node_modules/@luma.gl/constants": {
++      "version": "9.2.6",
++      "resolved": "https://registry.npmjs.org/@luma.gl/constants/-/constants-9.2.6.tgz",
++      "integrity": "sha512-rvFFrJuSm5JIWbDHFuR4Q2s4eudO3Ggsv0TsGKn9eqvO7bBiPm/ANugHredvh3KviEyYuMZZxtfJvBdr3kzldg==",
++      "license": "MIT",
++      "peer": true
++    },
++    "node_modules/@luma.gl/core": {
++      "version": "9.2.6",
++      "resolved": "https://registry.npmjs.org/@luma.gl/core/-/core-9.2.6.tgz",
++      "integrity": "sha512-d8KcH8ZZcjDAodSN/G2nueA9YE2X8kMz7Q0OxDGpCww6to1MZXM3Ydate/Jqsb5DDKVgUF6yD6RL8P5jOki9Yw==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@math.gl/types": "^4.1.0",
++        "@probe.gl/env": "^4.0.8",
++        "@probe.gl/log": "^4.0.8",
++        "@probe.gl/stats": "^4.0.8",
++        "@types/offscreencanvas": "^2019.6.4"
++      }
++    },
++    "node_modules/@luma.gl/engine": {
++      "version": "9.2.6",
++      "resolved": "https://registry.npmjs.org/@luma.gl/engine/-/engine-9.2.6.tgz",
++      "integrity": "sha512-1AEDs2AUqOWh7Wl4onOhXmQF+Rz1zNdPXF+Kxm4aWl92RQ42Sh2CmTvRt2BJku83VQ91KFIEm/v3qd3Urzf+Uw==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/types": "^4.1.0",
++        "@probe.gl/log": "^4.0.8",
++        "@probe.gl/stats": "^4.0.8"
++      },
++      "peerDependencies": {
++        "@luma.gl/core": "~9.2.0",
++        "@luma.gl/shadertools": "~9.2.0"
++      }
++    },
++    "node_modules/@luma.gl/gltf": {
++      "version": "9.2.6",
++      "resolved": "https://registry.npmjs.org/@luma.gl/gltf/-/gltf-9.2.6.tgz",
++      "integrity": "sha512-is3YkiGsWqWTmwldMz6PRaIUleufQfUKYjJTKpsF5RS1OnN+xdAO0mJq5qJTtOQpppWAU0VrmDFEVZ6R3qvm0A==",
++      "license": "MIT",
++      "dependencies": {
++        "@loaders.gl/core": "^4.2.0",
++        "@loaders.gl/gltf": "^4.2.0",
++        "@loaders.gl/textures": "^4.2.0",
++        "@math.gl/core": "^4.1.0"
++      },
++      "peerDependencies": {
++        "@luma.gl/constants": "~9.2.0",
++        "@luma.gl/core": "~9.2.0",
++        "@luma.gl/engine": "~9.2.0",
++        "@luma.gl/shadertools": "~9.2.0"
++      }
++    },
++    "node_modules/@luma.gl/shadertools": {
++      "version": "9.2.6",
++      "resolved": "https://registry.npmjs.org/@luma.gl/shadertools/-/shadertools-9.2.6.tgz",
++      "integrity": "sha512-4+uUbynqPUra9d/z1nQChyHmhLgmKfSMjS7kOwLB6exSnhKnpHL3+Hu9fv55qyaX50nGH3oHawhGtJ6RRvu65w==",
++      "license": "MIT",
++      "dependencies": {
++        "@math.gl/core": "^4.1.0",
++        "@math.gl/types": "^4.1.0",
++        "wgsl_reflect": "^1.2.0"
++      },
++      "peerDependencies": {
++        "@luma.gl/core": "~9.2.0"
++      }
++    },
++    "node_modules/@luma.gl/webgl": {
++      "version": "9.2.6",
++      "resolved": "https://registry.npmjs.org/@luma.gl/webgl/-/webgl-9.2.6.tgz",
++      "integrity": "sha512-NGBTdxJMk7j8Ygr1zuTyAvr1Tw+EpupMIQo7RelFjEsZXg6pujFqiDMM+rgxex8voCeuhWBJc7Rs+MoSqd46UQ==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@luma.gl/constants": "9.2.6",
++        "@math.gl/types": "^4.1.0",
++        "@probe.gl/env": "^4.0.8"
++      },
++      "peerDependencies": {
++        "@luma.gl/core": "~9.2.0"
++      }
++    },
++    "node_modules/@mapbox/jsonlint-lines-primitives": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@mapbox/jsonlint-lines-primitives/-/jsonlint-lines-primitives-2.0.2.tgz",
++      "integrity": "sha512-rY0o9A5ECsTQRVhv7tL/OyDpGAoUB4tTvLiW1DSzQGq4bvTPhNw1VpSNjDJc5GFZ2XuyOtSWSVN05qOtcD71qQ==",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/@mapbox/mapbox-gl-supported": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/@mapbox/mapbox-gl-supported/-/mapbox-gl-supported-3.0.0.tgz",
++      "integrity": "sha512-2XghOwu16ZwPJLOFVuIOaLbN0iKMn867evzXFyf0P22dqugezfJwLmdanAgU25ITvz1TvOfVP4jsDImlDJzcWg==",
++      "license": "BSD-3-Clause"
++    },
++    "node_modules/@mapbox/martini": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/@mapbox/martini/-/martini-0.2.0.tgz",
++      "integrity": "sha512-7hFhtkb0KTLEls+TRw/rWayq5EeHtTaErgm/NskVoXmtgAQu/9D299aeyj6mzAR/6XUnYRp2lU+4IcrYRFjVsQ==",
++      "license": "ISC"
++    },
++    "node_modules/@mapbox/point-geometry": {
++      "version": "0.1.0",
++      "resolved": "https://registry.npmjs.org/@mapbox/point-geometry/-/point-geometry-0.1.0.tgz",
++      "integrity": "sha512-6j56HdLTwWGO0fJPlrZtdU/B13q8Uwmo18Ck2GnGgN9PCFyKTZ3UbXeEdRFh18i9XQ92eH2VdtpJHpBD3aripQ==",
++      "license": "ISC"
++    },
++    "node_modules/@mapbox/tiny-sdf": {
++      "version": "2.0.7",
++      "resolved": "https://registry.npmjs.org/@mapbox/tiny-sdf/-/tiny-sdf-2.0.7.tgz",
++      "integrity": "sha512-25gQLQMcpivjOSA40g3gO6qgiFPDpWRoMfd+G/GoppPIeP6JDaMMkMrEJnMZhKyyS6iKwVt5YKu02vCUyJM3Ug==",
++      "license": "BSD-2-Clause"
++    },
++    "node_modules/@mapbox/unitbezier": {
++      "version": "0.0.1",
++      "resolved": "https://registry.npmjs.org/@mapbox/unitbezier/-/unitbezier-0.0.1.tgz",
++      "integrity": "sha512-nMkuDXFv60aBr9soUG5q+GvZYL+2KZHVvsqFCzqnkGEf46U2fvmytHaEVc1/YZbiLn8X+eR3QzX1+dwDO1lxlw==",
++      "license": "BSD-2-Clause"
++    },
++    "node_modules/@mapbox/vector-tile": {
++      "version": "1.3.1",
++      "resolved": "https://registry.npmjs.org/@mapbox/vector-tile/-/vector-tile-1.3.1.tgz",
++      "integrity": "sha512-MCEddb8u44/xfQ3oD+Srl/tNcQoqTw3goGk2oLsrFxOTc3dUp+kAnby3PvAeeBYSMSjSPD1nd1AJA6W49WnoUw==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "@mapbox/point-geometry": "~0.1.0"
++      }
++    },
++    "node_modules/@maplibre/maplibre-gl-style-spec": {
++      "version": "19.3.3",
++      "resolved": "https://registry.npmjs.org/@maplibre/maplibre-gl-style-spec/-/maplibre-gl-style-spec-19.3.3.tgz",
++      "integrity": "sha512-cOZZOVhDSulgK0meTsTkmNXb1ahVvmTmWmfx9gRBwc6hq98wS9JP35ESIoNq3xqEan+UN+gn8187Z6E4NKhLsw==",
++      "license": "ISC",
++      "dependencies": {
++        "@mapbox/jsonlint-lines-primitives": "~2.0.2",
++        "@mapbox/unitbezier": "^0.0.1",
++        "json-stringify-pretty-compact": "^3.0.0",
++        "minimist": "^1.2.8",
++        "rw": "^1.3.3",
++        "sort-object": "^3.0.3"
++      },
++      "bin": {
++        "gl-style-format": "dist/gl-style-format.mjs",
++        "gl-style-migrate": "dist/gl-style-migrate.mjs",
++        "gl-style-validate": "dist/gl-style-validate.mjs"
++      }
++    },
++    "node_modules/@math.gl/core": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/core/-/core-4.1.0.tgz",
++      "integrity": "sha512-FrdHBCVG3QdrworwrUSzXIaK+/9OCRLscxI2OUy6sLOHyHgBMyfnEGs99/m3KNvs+95BsnQLWklVfpKfQzfwKA==",
++      "license": "MIT",
++      "dependencies": {
++        "@math.gl/types": "4.1.0"
++      }
++    },
++    "node_modules/@math.gl/culling": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/culling/-/culling-4.1.0.tgz",
++      "integrity": "sha512-jFmjFEACnP9kVl8qhZxFNhCyd47qPfSVmSvvjR0/dIL6R9oD5zhR1ub2gN16eKDO/UM7JF9OHKU3EBIfeR7gtg==",
++      "license": "MIT",
++      "dependencies": {
++        "@math.gl/core": "4.1.0",
++        "@math.gl/types": "4.1.0"
++      }
++    },
++    "node_modules/@math.gl/geospatial": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/geospatial/-/geospatial-4.1.0.tgz",
++      "integrity": "sha512-BzsUhpVvnmleyYF6qdqJIip6FtIzJmnWuPTGhlBuPzh7VBHLonCFSPtQpbkRuoyAlbSyaGXcVt6p6lm9eK2vtg==",
++      "license": "MIT",
++      "dependencies": {
++        "@math.gl/core": "4.1.0",
++        "@math.gl/types": "4.1.0"
++      }
++    },
++    "node_modules/@math.gl/polygon": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/polygon/-/polygon-4.1.0.tgz",
++      "integrity": "sha512-YA/9PzaCRHbIP5/0E9uTYrqe+jsYTQoqoDWhf6/b0Ixz8bPZBaGDEafLg3z7ffBomZLacUty9U3TlPjqMtzPjA==",
++      "license": "MIT",
++      "dependencies": {
++        "@math.gl/core": "4.1.0"
++      }
++    },
++    "node_modules/@math.gl/sun": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/sun/-/sun-4.1.0.tgz",
++      "integrity": "sha512-i3q6OCBLSZ5wgZVhXg+X7gsjY/TUtuFW/2KBiq/U1ypLso3S4sEykoU/MGjxUv1xiiGtr+v8TeMbO1OBIh/HmA==",
++      "license": "MIT",
++      "peer": true
++    },
++    "node_modules/@math.gl/types": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/types/-/types-4.1.0.tgz",
++      "integrity": "sha512-clYZdHcmRvMzVK5fjeDkQlHUzXQSNdZ7s4xOqC3nJPgz4C/TZkUecTo9YS4PruZqtDda/ag4erndP0MIn40dGA==",
++      "license": "MIT"
++    },
++    "node_modules/@math.gl/web-mercator": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/@math.gl/web-mercator/-/web-mercator-4.1.0.tgz",
++      "integrity": "sha512-HZo3vO5GCMkXJThxRJ5/QYUYRr3XumfT8CzNNCwoJfinxy5NtKUd7dusNTXn7yJ40UoB8FMIwkVwNlqaiRZZAw==",
++      "license": "MIT",
++      "dependencies": {
++        "@math.gl/core": "4.1.0"
++      }
++    },
+     "node_modules/@napi-rs/wasm-runtime": {
+       "version": "0.2.12",
+       "resolved": "https://registry.npmjs.org/@napi-rs/wasm-runtime/-/wasm-runtime-0.2.12.tgz",
+@@ -1236,17 +1901,27 @@
+         "node": ">=12.4.0"
+       }
+     },
+-    "node_modules/@react-leaflet/core": {
+-      "version": "3.0.0",
+-      "resolved": "https://registry.npmjs.org/@react-leaflet/core/-/core-3.0.0.tgz",
+-      "integrity": "sha512-3EWmekh4Nz+pGcr+xjf0KNyYfC3U2JjnkWsh0zcqaexYqmmB5ZhH37kz41JXGmKzpaMZCnPofBBm64i+YrEvGQ==",
+-      "license": "Hippocratic-2.1",
+-      "peerDependencies": {
+-        "leaflet": "^1.9.0",
+-        "react": "^19.0.0",
+-        "react-dom": "^19.0.0"
++    "node_modules/@probe.gl/env": {
++      "version": "4.1.1",
++      "resolved": "https://registry.npmjs.org/@probe.gl/env/-/env-4.1.1.tgz",
++      "integrity": "sha512-+68seNDMVsEegRB47pFA/Ws1Fjy8agcFYXxzorKToyPcD6zd+gZ5uhwoLd7TzsSw6Ydns//2KEszWn+EnNHTbA==",
++      "license": "MIT"
++    },
++    "node_modules/@probe.gl/log": {
++      "version": "4.1.1",
++      "resolved": "https://registry.npmjs.org/@probe.gl/log/-/log-4.1.1.tgz",
++      "integrity": "sha512-kcZs9BT44pL7hS1OkRGKYRXI/SN9KejUlPD+BY40DguRLzdC5tLG/28WGMyfKdn/51GT4a0p+0P8xvDn1Ez+Kg==",
++      "license": "MIT",
++      "dependencies": {
++        "@probe.gl/env": "4.1.1"
+       }
+     },
++    "node_modules/@probe.gl/stats": {
++      "version": "4.1.1",
++      "resolved": "https://registry.npmjs.org/@probe.gl/stats/-/stats-4.1.1.tgz",
++      "integrity": "sha512-4VpAyMHOqydSvPlEyHwXaE+AkIdR03nX+Qhlxsk2D/IW4OVmDZgIsvJB1cDzyEEtcfKcnaEbfXeiPgejBceT6g==",
++      "license": "MIT"
++    },
+     "node_modules/@rtsao/scc": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/@rtsao/scc/-/scc-1.1.0.tgz",
+@@ -1620,6 +2295,62 @@
+         "tailwindcss": "4.2.2"
+       }
+     },
++    "node_modules/@turf/boolean-clockwise": {
++      "version": "5.1.5",
++      "resolved": "https://registry.npmjs.org/@turf/boolean-clockwise/-/boolean-clockwise-5.1.5.tgz",
++      "integrity": "sha512-FqbmEEOJ4rU4/2t7FKx0HUWmjFEVqR+NJrFP7ymGSjja2SQ7Q91nnBihGuT+yuHHl6ElMjQ3ttsB/eTmyCycxA==",
++      "license": "MIT",
++      "dependencies": {
++        "@turf/helpers": "^5.1.5",
++        "@turf/invariant": "^5.1.5"
++      }
++    },
++    "node_modules/@turf/clone": {
++      "version": "5.1.5",
++      "resolved": "https://registry.npmjs.org/@turf/clone/-/clone-5.1.5.tgz",
++      "integrity": "sha512-//pITsQ8xUdcQ9pVb4JqXiSqG4dos5Q9N4sYFoWghX21tfOV2dhc5TGqYOhnHrQS7RiKQL1vQ48kIK34gQ5oRg==",
++      "license": "MIT",
++      "dependencies": {
++        "@turf/helpers": "^5.1.5"
++      }
++    },
++    "node_modules/@turf/helpers": {
++      "version": "5.1.5",
++      "resolved": "https://registry.npmjs.org/@turf/helpers/-/helpers-5.1.5.tgz",
++      "integrity": "sha512-/lF+JR+qNDHZ8bF9d+Cp58nxtZWJ3sqFe6n3u3Vpj+/0cqkjk4nXKYBSY0azm+GIYB5mWKxUXvuP/m0ZnKj1bw==",
++      "license": "MIT"
++    },
++    "node_modules/@turf/invariant": {
++      "version": "5.2.0",
++      "resolved": "https://registry.npmjs.org/@turf/invariant/-/invariant-5.2.0.tgz",
++      "integrity": "sha512-28RCBGvCYsajVkw2EydpzLdcYyhSA77LovuOvgCJplJWaNVyJYH6BOR3HR9w50MEkPqb/Vc/jdo6I6ermlRtQA==",
++      "license": "MIT",
++      "dependencies": {
++        "@turf/helpers": "^5.1.5"
++      }
++    },
++    "node_modules/@turf/meta": {
++      "version": "5.2.0",
++      "resolved": "https://registry.npmjs.org/@turf/meta/-/meta-5.2.0.tgz",
++      "integrity": "sha512-ZjQ3Ii62X9FjnK4hhdsbT+64AYRpaI8XMBMcyftEOGSmPMUVnkbvuv3C9geuElAXfQU7Zk1oWGOcrGOD9zr78Q==",
++      "license": "MIT",
++      "dependencies": {
++        "@turf/helpers": "^5.1.5"
++      }
++    },
++    "node_modules/@turf/rewind": {
++      "version": "5.1.5",
++      "resolved": "https://registry.npmjs.org/@turf/rewind/-/rewind-5.1.5.tgz",
++      "integrity": "sha512-Gdem7JXNu+G4hMllQHXRFRihJl3+pNl7qY+l4qhQFxq+hiU1cQoVFnyoleIqWKIrdK/i2YubaSwc3SCM7N5mMw==",
++      "license": "MIT",
++      "dependencies": {
++        "@turf/boolean-clockwise": "^5.1.5",
++        "@turf/clone": "^5.1.5",
++        "@turf/helpers": "^5.1.5",
++        "@turf/invariant": "^5.1.5",
++        "@turf/meta": "^5.1.5"
++      }
++    },
+     "node_modules/@tybys/wasm-util": {
+       "version": "0.10.1",
+       "resolved": "https://registry.npmjs.org/@tybys/wasm-util/-/wasm-util-0.10.1.tgz",
+@@ -1631,6 +2362,21 @@
+         "tslib": "^2.4.0"
+       }
+     },
++    "node_modules/@types/brotli": {
++      "version": "1.3.5",
++      "resolved": "https://registry.npmjs.org/@types/brotli/-/brotli-1.3.5.tgz",
++      "integrity": "sha512-9xoNr+bcxT236/7ZgcWw/6Pb2RRetE13p4bFy1xYSckKwyOiRfmInay8baUWZgH7/284Wl6IPe7+nOI9+OQg/A==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/node": "*"
++      }
++    },
++    "node_modules/@types/crypto-js": {
++      "version": "4.2.2",
++      "resolved": "https://registry.npmjs.org/@types/crypto-js/-/crypto-js-4.2.2.tgz",
++      "integrity": "sha512-sDOLlVbHhXpAUAL0YHDUUwDZf3iN4Bwi4W6a0W0b+QcAezUbRtH4FVb+9J4h+XFPW7l/gQ9F8qC7P+Ec4k8QVQ==",
++      "license": "MIT"
++    },
+     "node_modules/@types/estree": {
+       "version": "1.0.8",
+       "resolved": "https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz",
+@@ -1644,6 +2390,15 @@
+       "integrity": "sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==",
+       "license": "MIT"
+     },
++    "node_modules/@types/geojson-vt": {
++      "version": "3.2.5",
++      "resolved": "https://registry.npmjs.org/@types/geojson-vt/-/geojson-vt-3.2.5.tgz",
++      "integrity": "sha512-qDO7wqtprzlpe8FfQ//ClPV9xiuoh2nkIgiouIptON9w5jvD/fA4szvP9GBlDVdJ5dldAl0kX/sy3URbWwLx0g==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/geojson": "*"
++      }
++    },
+     "node_modules/@types/json-schema": {
+       "version": "7.0.15",
+       "resolved": "https://registry.npmjs.org/@types/json-schema/-/json-schema-7.0.15.tgz",
+@@ -1658,15 +2413,6 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/@types/leaflet": {
+-      "version": "1.9.21",
+-      "resolved": "https://registry.npmjs.org/@types/leaflet/-/leaflet-1.9.21.tgz",
+-      "integrity": "sha512-TbAd9DaPGSnzp6QvtYngntMZgcRk+igFELwR2N99XZn7RXUdKgsXMR+28bUO0rPsWp8MIu/f47luLIQuSLYv/w==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/geojson": "*"
+-      }
+-    },
+     "node_modules/@types/node": {
+       "version": "20.19.37",
+       "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.37.tgz",
+@@ -1676,6 +2422,25 @@
+         "undici-types": "~6.21.0"
+       }
+     },
++    "node_modules/@types/offscreencanvas": {
++      "version": "2019.7.3",
++      "resolved": "https://registry.npmjs.org/@types/offscreencanvas/-/offscreencanvas-2019.7.3.tgz",
++      "integrity": "sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==",
++      "license": "MIT",
++      "peer": true
++    },
++    "node_modules/@types/pako": {
++      "version": "1.0.7",
++      "resolved": "https://registry.npmjs.org/@types/pako/-/pako-1.0.7.tgz",
++      "integrity": "sha512-YBtzT2ztNF6R/9+UXj2wTGFnC9NklAnASt3sC0h2m1bbH7G6FyBIkt4AN8ThZpNfxUo1b2iMVO0UawiJymEt8A==",
++      "license": "MIT"
++    },
++    "node_modules/@types/pbf": {
++      "version": "3.0.5",
++      "resolved": "https://registry.npmjs.org/@types/pbf/-/pbf-3.0.5.tgz",
++      "integrity": "sha512-j3pOPiEcWZ34R6a6mN07mUkM4o4Lwf6hPNt8eilOeZhTFbxFXmKhvXl9Y28jotFPaI1bpPDJsbCprUoNke6OrA==",
++      "license": "MIT"
++    },
+     "node_modules/@types/phoenix": {
+       "version": "1.6.7",
+       "resolved": "https://registry.npmjs.org/@types/phoenix/-/phoenix-1.6.7.tgz",
+@@ -1702,6 +2467,15 @@
+         "@types/react": "^19.2.0"
+       }
+     },
++    "node_modules/@types/supercluster": {
++      "version": "7.1.3",
++      "resolved": "https://registry.npmjs.org/@types/supercluster/-/supercluster-7.1.3.tgz",
++      "integrity": "sha512-Z0pOY34GDFl3Q6hUFYf3HkTwKEE02e7QgtJppBt+beEAxnyOpJua+voGFvxINBHa06GwLFFym7gRPY2SiKIfIA==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/geojson": "*"
++      }
++    },
+     "node_modules/@types/ws": {
+       "version": "8.18.1",
+       "resolved": "https://registry.npmjs.org/@types/ws/-/ws-8.18.1.tgz",
+@@ -2275,6 +3049,50 @@
+         "win32"
+       ]
+     },
++    "node_modules/@vis.gl/react-mapbox": {
++      "version": "8.1.0",
++      "resolved": "https://registry.npmjs.org/@vis.gl/react-mapbox/-/react-mapbox-8.1.0.tgz",
++      "integrity": "sha512-FwvH822oxEjWYOr+pP2L8hpv+7cZB2UsQbHHHT0ryrkvvqzmTgt7qHDhamv0EobKw86e1I+B4ojENdJ5G5BkyQ==",
++      "license": "MIT",
++      "peerDependencies": {
++        "mapbox-gl": ">=3.5.0",
++        "react": ">=16.3.0",
++        "react-dom": ">=16.3.0"
++      },
++      "peerDependenciesMeta": {
++        "mapbox-gl": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/@vis.gl/react-maplibre": {
++      "version": "8.1.0",
++      "resolved": "https://registry.npmjs.org/@vis.gl/react-maplibre/-/react-maplibre-8.1.0.tgz",
++      "integrity": "sha512-PkAK/gp3mUfhCLhUuc+4gc3PN9zCtVGxTF2hB6R5R5yYUw+hdg84OZ770U5MU4tPMTCG6fbduExuIW6RRKN6qQ==",
++      "license": "MIT",
++      "dependencies": {
++        "@maplibre/maplibre-gl-style-spec": "^19.2.1"
++      },
++      "peerDependencies": {
++        "maplibre-gl": ">=4.0.0",
++        "react": ">=16.3.0",
++        "react-dom": ">=16.3.0"
++      },
++      "peerDependenciesMeta": {
++        "maplibre-gl": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/a5-js": {
++      "version": "0.5.0",
++      "resolved": "https://registry.npmjs.org/a5-js/-/a5-js-0.5.0.tgz",
++      "integrity": "sha512-VAw19sWdYadhdovb0ViOIi1SdKx6H6LwcGMRFKwMfgL5gcmL/1fKJHfgsNgNaJ7xC/eEyjs6VK+VVd4N0a+peg==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "gl-matrix": "^3.4.3"
++      }
++    },
+     "node_modules/acorn": {
+       "version": "8.16.0",
+       "resolved": "https://registry.npmjs.org/acorn/-/acorn-8.16.0.tgz",
+@@ -2348,6 +3166,15 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/arr-union": {
++      "version": "3.1.0",
++      "resolved": "https://registry.npmjs.org/arr-union/-/arr-union-3.1.0.tgz",
++      "integrity": "sha512-sKpyeERZ02v1FeCZT8lrfJq5u6goHCtpTAzPwJYe7c8SPFOboNjNg1vz2L4VTn9T4PQxEx13TbXLmYUcS6Ug7Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/array-buffer-byte-length": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/array-buffer-byte-length/-/array-buffer-byte-length-1.0.2.tgz",
+@@ -2508,6 +3335,15 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/assign-symbols": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/assign-symbols/-/assign-symbols-1.0.0.tgz",
++      "integrity": "sha512-Q+JC7Whu8HhmTdBph/Tq59IoRtoy6KAm5zzPv00WdujX82lbAL8K7WVjne7vdCsAmbF4AYaDOPyO3k0kl8qIrw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/ast-types-flow": {
+       "version": "0.0.8",
+       "resolved": "https://registry.npmjs.org/ast-types-flow/-/ast-types-flow-0.0.8.tgz",
+@@ -2568,6 +3404,27 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/base64-js": {
++      "version": "1.5.1",
++      "resolved": "https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz",
++      "integrity": "sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/feross"
++        },
++        {
++          "type": "patreon",
++          "url": "https://www.patreon.com/feross"
++        },
++        {
++          "type": "consulting",
++          "url": "https://feross.org/support"
++        }
++      ],
++      "license": "MIT",
++      "optional": true
++    },
+     "node_modules/baseline-browser-mapping": {
+       "version": "2.10.9",
+       "resolved": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.10.9.tgz",
+@@ -2604,6 +3461,16 @@
+         "node": ">=8"
+       }
+     },
++    "node_modules/brotli": {
++      "version": "1.3.3",
++      "resolved": "https://registry.npmjs.org/brotli/-/brotli-1.3.3.tgz",
++      "integrity": "sha512-oTKjJdShmDuGW94SyyaoQvAjf30dZaHnjJ8uAF+u2/vGJkJbJPJAT1gDiOJP5v1Zb6f9KEyW/1HpuaWIXtGHPg==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "base64-js": "^1.1.2"
++      }
++    },
+     "node_modules/browserslist": {
+       "version": "4.28.1",
+       "resolved": "https://registry.npmjs.org/browserslist/-/browserslist-4.28.1.tgz",
+@@ -2638,6 +3505,34 @@
+         "node": "^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7"
+       }
+     },
++    "node_modules/buf-compare": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/buf-compare/-/buf-compare-1.0.1.tgz",
++      "integrity": "sha512-Bvx4xH00qweepGc43xFvMs5BKASXTbHaHm6+kDYIK9p/4iFwjATQkmPKHQSgJZzKbAymhztRbXUf1Nqhzl73/Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/bytewise": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/bytewise/-/bytewise-1.1.0.tgz",
++      "integrity": "sha512-rHuuseJ9iQ0na6UDhnrRVDh8YnWVlU6xM3VH6q/+yHDeUH2zIhUzP+2/h3LIrhLDBtTqzWpE3p3tP/boefskKQ==",
++      "license": "MIT",
++      "dependencies": {
++        "bytewise-core": "^1.2.2",
++        "typewise": "^1.0.3"
++      }
++    },
++    "node_modules/bytewise-core": {
++      "version": "1.2.3",
++      "resolved": "https://registry.npmjs.org/bytewise-core/-/bytewise-core-1.2.3.tgz",
++      "integrity": "sha512-nZD//kc78OOxeYtRlVk8/zXqTB4gf/nlguL1ggWA8FuchMyOxcyHR4QPQZMUmA7czC+YnaBrPUCubqAWe50DaA==",
++      "license": "MIT",
++      "dependencies": {
++        "typewise-core": "^1.2"
++      }
++    },
+     "node_modules/call-bind": {
+       "version": "1.0.8",
+       "resolved": "https://registry.npmjs.org/call-bind/-/call-bind-1.0.8.tgz",
+@@ -2735,6 +3630,21 @@
+         "url": "https://github.com/chalk/chalk?sponsor=1"
+       }
+     },
++    "node_modules/charenc": {
++      "version": "0.0.2",
++      "resolved": "https://registry.npmjs.org/charenc/-/charenc-0.0.2.tgz",
++      "integrity": "sha512-yrLQ/yVUFXkzg7EDQsPieE/53+0RlaWTs+wBrvW36cyilJ2SaDWfl4Yj7MtLTXleV9uEKefbAGUPv2/iWSooRA==",
++      "license": "BSD-3-Clause",
++      "engines": {
++        "node": "*"
++      }
++    },
++    "node_modules/cheap-ruler": {
++      "version": "4.0.0",
++      "resolved": "https://registry.npmjs.org/cheap-ruler/-/cheap-ruler-4.0.0.tgz",
++      "integrity": "sha512-0BJa8f4t141BYKQyn9NSQt1PguFQXMXwZiA5shfoaBYHAb2fFk2RAX+tiWMoQU+Agtzt3mdt0JtuyshAXqZ+Vw==",
++      "license": "ISC"
++    },
+     "node_modules/client-only": {
+       "version": "0.0.1",
+       "resolved": "https://registry.npmjs.org/client-only/-/client-only-0.0.1.tgz",
+@@ -2784,6 +3694,25 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/core-assert": {
++      "version": "0.2.1",
++      "resolved": "https://registry.npmjs.org/core-assert/-/core-assert-0.2.1.tgz",
++      "integrity": "sha512-IG97qShIP+nrJCXMCgkNZgH7jZQ4n8RpPyPeXX++T6avR/KhLhgLiHKoEn5Rc1KjfycSfA9DMa6m+4C4eguHhw==",
++      "license": "MIT",
++      "dependencies": {
++        "buf-compare": "^1.0.0",
++        "is-error": "^2.2.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/core-util-is": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz",
++      "integrity": "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==",
++      "license": "MIT"
++    },
+     "node_modules/cross-spawn": {
+       "version": "7.0.6",
+       "resolved": "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.6.tgz",
+@@ -2799,6 +3728,21 @@
+         "node": ">= 8"
+       }
+     },
++    "node_modules/crypt": {
++      "version": "0.0.2",
++      "resolved": "https://registry.npmjs.org/crypt/-/crypt-0.0.2.tgz",
++      "integrity": "sha512-mCxBlsHFYh9C+HVpiEacem8FEBnMXgU9gy4zmNC+SXAZNB/1idgp/aulFJ4FgCi7GPEVbfyng092GqL2k2rmow==",
++      "license": "BSD-3-Clause",
++      "engines": {
++        "node": "*"
++      }
++    },
++    "node_modules/csscolorparser": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/csscolorparser/-/csscolorparser-1.0.3.tgz",
++      "integrity": "sha512-umPSgYwZkdFoUrH5hIq5kf0wPSXiro51nPw0j2K/c83KflkPSTBGMz6NJvMB+07VlL0y7VPo6QJcDjcgKTTm3w==",
++      "license": "MIT"
++    },
+     "node_modules/csstype": {
+       "version": "3.2.3",
+       "resolved": "https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz",
+@@ -2901,6 +3845,18 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/deep-strict-equal": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/deep-strict-equal/-/deep-strict-equal-0.2.0.tgz",
++      "integrity": "sha512-3daSWyvZ/zwJvuMGlzG1O+Ow0YSadGfb3jsh9xoCutv2tWyB9dA4YvR9L9/fSdDZa2dByYQe+TqapSGUrjnkoA==",
++      "license": "MIT",
++      "dependencies": {
++        "core-assert": "^0.2.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/define-data-property": {
+       "version": "1.1.4",
+       "resolved": "https://registry.npmjs.org/define-data-property/-/define-data-property-1.1.4.tgz",
+@@ -2960,6 +3916,12 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/draco3d": {
++      "version": "1.5.7",
++      "resolved": "https://registry.npmjs.org/draco3d/-/draco3d-1.5.7.tgz",
++      "integrity": "sha512-m6WCKt/erDXcw+70IJXnG7M3awwQPAsZvJGX5zY7beBqpELw6RDGkYVU0W43AFxye4pDZ5i2Lbyc/NNGqwjUVQ==",
++      "license": "Apache-2.0"
++    },
+     "node_modules/dunder-proto": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/dunder-proto/-/dunder-proto-1.0.1.tgz",
+@@ -2975,6 +3937,12 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/earcut": {
++      "version": "2.2.4",
++      "resolved": "https://registry.npmjs.org/earcut/-/earcut-2.2.4.tgz",
++      "integrity": "sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==",
++      "license": "ISC"
++    },
+     "node_modules/electron-to-chromium": {
+       "version": "1.5.321",
+       "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.321.tgz",
+@@ -3656,6 +4624,18 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/extend-shallow": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/extend-shallow/-/extend-shallow-2.0.1.tgz",
++      "integrity": "sha512-zCnTtlxNoAiDc3gqY2aYAWFx7XWWiasuF2K8Me5WbN8otHKTUKBwjPtNpRs/rbUZm7KxWAaNj7P1a/p52GbVug==",
++      "license": "MIT",
++      "dependencies": {
++        "is-extendable": "^0.1.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/fast-deep-equal": {
+       "version": "3.1.3",
+       "resolved": "https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz",
+@@ -3707,6 +4687,24 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/fast-xml-parser": {
++      "version": "4.5.4",
++      "resolved": "https://registry.npmjs.org/fast-xml-parser/-/fast-xml-parser-4.5.4.tgz",
++      "integrity": "sha512-jE8ugADnYOBsu1uaoayVl1tVKAMNOXyjwvv2U6udEA2ORBhDooJDWoGxTkhd4Qn4yh59JVVt/pKXtjPwx9OguQ==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/NaturalIntelligence"
++        }
++      ],
++      "license": "MIT",
++      "dependencies": {
++        "strnum": "^1.0.5"
++      },
++      "bin": {
++        "fxparser": "src/cli/cli.js"
++      }
++    },
+     "node_modules/fastq": {
+       "version": "1.20.1",
+       "resolved": "https://registry.npmjs.org/fastq/-/fastq-1.20.1.tgz",
+@@ -3717,6 +4715,12 @@
+         "reusify": "^1.0.4"
+       }
+     },
++    "node_modules/fflate": {
++      "version": "0.7.4",
++      "resolved": "https://registry.npmjs.org/fflate/-/fflate-0.7.4.tgz",
++      "integrity": "sha512-5u2V/CDW15QM1XbbgS+0DfPxVB+jUKhWEKuuFuHncbk3tEEqzmoXL+2KyOFuKGqOnmdIy0/davWF1CkuwtibCw==",
++      "license": "MIT"
++    },
+     "node_modules/file-entry-cache": {
+       "version": "8.0.0",
+       "resolved": "https://registry.npmjs.org/file-entry-cache/-/file-entry-cache-8.0.0.tgz",
+@@ -3858,6 +4862,12 @@
+         "node": ">=6.9.0"
+       }
+     },
++    "node_modules/geojson-vt": {
++      "version": "4.0.2",
++      "resolved": "https://registry.npmjs.org/geojson-vt/-/geojson-vt-4.0.2.tgz",
++      "integrity": "sha512-AV9ROqlNqoZEIJGfm1ncNjEXfkz2hdFlZf0qkVfmkwdKa8vj7H16YUOT81rJw1rdFhyEDlN2Tds91p/glzbl5A==",
++      "license": "ISC"
++    },
+     "node_modules/get-intrinsic": {
+       "version": "1.3.0",
+       "resolved": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.3.0.tgz",
+@@ -3928,6 +4938,21 @@
+         "url": "https://github.com/privatenumber/get-tsconfig?sponsor=1"
+       }
+     },
++    "node_modules/get-value": {
++      "version": "2.0.6",
++      "resolved": "https://registry.npmjs.org/get-value/-/get-value-2.0.6.tgz",
++      "integrity": "sha512-Ln0UQDlxH1BapMu3GPtf7CuYNwRZf2gwCuPqbyG6pB8WfmFpzqcy4xtAaAMUhnNqjMKTiCPZG2oMT3YSx8U2NA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/gl-matrix": {
++      "version": "3.4.4",
++      "resolved": "https://registry.npmjs.org/gl-matrix/-/gl-matrix-3.4.4.tgz",
++      "integrity": "sha512-latSnyDNt/8zYUB6VIJ6PCh2jBjJX6gnDsoCZ7LyW7GkqrD51EWwa9qCoGixj8YqBtETQK/xY7OmpTF8xz1DdQ==",
++      "license": "MIT"
++    },
+     "node_modules/glob-parent": {
+       "version": "6.0.2",
+       "resolved": "https://registry.npmjs.org/glob-parent/-/glob-parent-6.0.2.tgz",
+@@ -3991,6 +5016,23 @@
+       "dev": true,
+       "license": "ISC"
+     },
++    "node_modules/grid-index": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/grid-index/-/grid-index-1.1.0.tgz",
++      "integrity": "sha512-HZRwumpOGUrHyxO5bqKZL0B0GlUpwtCAzZ42sgxUPniu33R1LSFH5yrIcBCHjkctCAh3mtWKcKd9J4vDDdeVHA==",
++      "license": "ISC"
++    },
++    "node_modules/h3-js": {
++      "version": "4.4.0",
++      "resolved": "https://registry.npmjs.org/h3-js/-/h3-js-4.4.0.tgz",
++      "integrity": "sha512-DvJh07MhGgY2KcC4OeZc8SSyA+ZXpdvoh6uCzGpoKvWtZxJB+g6VXXC1+eWYkaMIsLz7J/ErhOalHCpcs1KYog==",
++      "license": "Apache-2.0",
++      "engines": {
++        "node": ">=4",
++        "npm": ">=3",
++        "yarn": ">=1.3.0"
++      }
++    },
+     "node_modules/has-bigints": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/has-bigints/-/has-bigints-1.1.0.tgz",
+@@ -4111,6 +5153,26 @@
+         "node": ">=20.0.0"
+       }
+     },
++    "node_modules/ieee754": {
++      "version": "1.2.1",
++      "resolved": "https://registry.npmjs.org/ieee754/-/ieee754-1.2.1.tgz",
++      "integrity": "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/feross"
++        },
++        {
++          "type": "patreon",
++          "url": "https://www.patreon.com/feross"
++        },
++        {
++          "type": "consulting",
++          "url": "https://feross.org/support"
++        }
++      ],
++      "license": "BSD-3-Clause"
++    },
+     "node_modules/ignore": {
+       "version": "5.3.2",
+       "resolved": "https://registry.npmjs.org/ignore/-/ignore-5.3.2.tgz",
+@@ -4118,9 +5180,27 @@
+       "dev": true,
+       "license": "MIT",
+       "engines": {
+-        "node": ">= 4"
++        "node": ">= 4"
++      }
++    },
++    "node_modules/image-size": {
++      "version": "0.7.5",
++      "resolved": "https://registry.npmjs.org/image-size/-/image-size-0.7.5.tgz",
++      "integrity": "sha512-Hiyv+mXHfFEP7LzUL/llg9RwFxxY+o9N3JVLIeG5E7iFIFAalxvRU9UZthBdYDEVnzHMgjnKJPPpay5BWf1g9g==",
++      "license": "MIT",
++      "bin": {
++        "image-size": "bin/image-size.js"
++      },
++      "engines": {
++        "node": ">=6.9.0"
+       }
+     },
++    "node_modules/immediate": {
++      "version": "3.0.6",
++      "resolved": "https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz",
++      "integrity": "sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==",
++      "license": "MIT"
++    },
+     "node_modules/import-fresh": {
+       "version": "3.3.1",
+       "resolved": "https://registry.npmjs.org/import-fresh/-/import-fresh-3.3.1.tgz",
+@@ -4148,6 +5228,12 @@
+         "node": ">=0.8.19"
+       }
+     },
++    "node_modules/inherits": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
++      "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==",
++      "license": "ISC"
++    },
+     "node_modules/internal-slot": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/internal-slot/-/internal-slot-1.1.0.tgz",
+@@ -4234,6 +5320,12 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/is-buffer": {
++      "version": "1.1.6",
++      "resolved": "https://registry.npmjs.org/is-buffer/-/is-buffer-1.1.6.tgz",
++      "integrity": "sha512-NcdALwpXkTm5Zvvbk7owOUSvVvBKDgKP5/ewfXEznmQFfs4ZRmanOeKBTjRVjka3QFoN6XJ+9F3USqfHqTaU5w==",
++      "license": "MIT"
++    },
+     "node_modules/is-bun-module": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/is-bun-module/-/is-bun-module-2.0.0.tgz",
+@@ -4321,6 +5413,21 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/is-error": {
++      "version": "2.2.2",
++      "resolved": "https://registry.npmjs.org/is-error/-/is-error-2.2.2.tgz",
++      "integrity": "sha512-IOQqts/aHWbiisY5DuPJQ0gcbvaLFCa7fBa9xoLfxBZvQ+ZI/Zh9xoI7Gk+G64N0FdK4AbibytHht2tWgpJWLg==",
++      "license": "MIT"
++    },
++    "node_modules/is-extendable": {
++      "version": "0.1.1",
++      "resolved": "https://registry.npmjs.org/is-extendable/-/is-extendable-0.1.1.tgz",
++      "integrity": "sha512-5BMULNob1vgFX6EjQw5izWDxrecWK9AM72rugNr0TFldMOi0fj6Jk+zeKIt0xGj4cEfQIJth4w3OKWOJ4f+AFw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/is-extglob": {
+       "version": "2.1.1",
+       "resolved": "https://registry.npmjs.org/is-extglob/-/is-extglob-2.1.1.tgz",
+@@ -4433,6 +5540,18 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/is-plain-object": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/is-plain-object/-/is-plain-object-2.0.4.tgz",
++      "integrity": "sha512-h5PpgXkWitc38BBMYawTYMWJHFZJVnBquFE57xFpjB8pJFiF6gZ+bU+WyI/yqXiFR5mdLsgYNaPe8uao6Uv9Og==",
++      "license": "MIT",
++      "dependencies": {
++        "isobject": "^3.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/is-regex": {
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/is-regex/-/is-regex-1.2.1.tgz",
+@@ -4592,6 +5711,15 @@
+       "dev": true,
+       "license": "ISC"
+     },
++    "node_modules/isobject": {
++      "version": "3.0.1",
++      "resolved": "https://registry.npmjs.org/isobject/-/isobject-3.0.1.tgz",
++      "integrity": "sha512-WhB9zCku7EGTj/HQQRz5aUQEUeoQZH2bWcltRErOpymJ4boYE6wL9Tbr23krRPSZ+C5zqNSrSw+Cc7sZZ4b7vg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/iterator.prototype": {
+       "version": "1.1.5",
+       "resolved": "https://registry.npmjs.org/iterator.prototype/-/iterator.prototype-1.1.5.tgz",
+@@ -4674,6 +5802,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/json-stringify-pretty-compact": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/json-stringify-pretty-compact/-/json-stringify-pretty-compact-3.0.0.tgz",
++      "integrity": "sha512-Rc2suX5meI0S3bfdZuA7JMFBGkJ875ApfVyq2WHELjBiiG22My/l7/8zPpH/CfFVQHuVLd8NLR0nv6vi0BYYKA==",
++      "license": "MIT"
++    },
+     "node_modules/json5": {
+       "version": "2.2.3",
+       "resolved": "https://registry.npmjs.org/json5/-/json5-2.2.3.tgz",
+@@ -4703,6 +5837,24 @@
+         "node": ">=4.0"
+       }
+     },
++    "node_modules/jszip": {
++      "version": "3.10.1",
++      "resolved": "https://registry.npmjs.org/jszip/-/jszip-3.10.1.tgz",
++      "integrity": "sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==",
++      "license": "(MIT OR GPL-3.0-or-later)",
++      "dependencies": {
++        "lie": "~3.3.0",
++        "pako": "~1.0.2",
++        "readable-stream": "~2.3.6",
++        "setimmediate": "^1.0.5"
++      }
++    },
++    "node_modules/kdbush": {
++      "version": "4.0.2",
++      "resolved": "https://registry.npmjs.org/kdbush/-/kdbush-4.0.2.tgz",
++      "integrity": "sha512-WbCVYJ27Sz8zi9Q7Q0xHC+05iwkm3Znipc2XTlrnJbsHMYktW4hPhXUE8Ys1engBrvffoSCqbil1JQAa7clRpA==",
++      "license": "ISC"
++    },
+     "node_modules/keyv": {
+       "version": "4.5.4",
+       "resolved": "https://registry.npmjs.org/keyv/-/keyv-4.5.4.tgz",
+@@ -4713,6 +5865,12 @@
+         "json-buffer": "3.0.1"
+       }
+     },
++    "node_modules/ktx-parse": {
++      "version": "0.7.1",
++      "resolved": "https://registry.npmjs.org/ktx-parse/-/ktx-parse-0.7.1.tgz",
++      "integrity": "sha512-FeA3g56ksdFNwjXJJsc1CCc7co+AJYDp6ipIp878zZ2bU8kWROatLYf39TQEd4/XRSUvBXovQ8gaVKWPXsCLEQ==",
++      "license": "MIT"
++    },
+     "node_modules/language-subtag-registry": {
+       "version": "0.3.23",
+       "resolved": "https://registry.npmjs.org/language-subtag-registry/-/language-subtag-registry-0.3.23.tgz",
+@@ -4733,12 +5891,6 @@
+         "node": ">=0.10"
+       }
+     },
+-    "node_modules/leaflet": {
+-      "version": "1.9.4",
+-      "resolved": "https://registry.npmjs.org/leaflet/-/leaflet-1.9.4.tgz",
+-      "integrity": "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==",
+-      "license": "BSD-2-Clause"
+-    },
+     "node_modules/levn": {
+       "version": "0.4.1",
+       "resolved": "https://registry.npmjs.org/levn/-/levn-0.4.1.tgz",
+@@ -4753,6 +5905,15 @@
+         "node": ">= 0.8.0"
+       }
+     },
++    "node_modules/lie": {
++      "version": "3.3.0",
++      "resolved": "https://registry.npmjs.org/lie/-/lie-3.3.0.tgz",
++      "integrity": "sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==",
++      "license": "MIT",
++      "dependencies": {
++        "immediate": "~3.0.5"
++      }
++    },
+     "node_modules/lightningcss": {
+       "version": "1.32.0",
+       "resolved": "https://registry.npmjs.org/lightningcss/-/lightningcss-1.32.0.tgz",
+@@ -5037,6 +6198,15 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/long": {
++      "version": "3.2.0",
++      "resolved": "https://registry.npmjs.org/long/-/long-3.2.0.tgz",
++      "integrity": "sha512-ZYvPPOMqUwPoDsbJaR10iQJYnMuZhRTvHYl62ErLIEX7RgFlziSBUUvrt3OVfc47QlHHpzPZYP17g3Fv7oeJkg==",
++      "license": "Apache-2.0",
++      "engines": {
++        "node": ">=0.6"
++      }
++    },
+     "node_modules/loose-envify": {
+       "version": "1.4.0",
+       "resolved": "https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz",
+@@ -5069,6 +6239,19 @@
+         "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+       }
+     },
++    "node_modules/lz4js": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/lz4js/-/lz4js-0.2.0.tgz",
++      "integrity": "sha512-gY2Ia9Lm7Ep8qMiuGRhvUq0Q7qUereeldZPP1PMEJxPtEWHJLqw9pgX68oHajBH0nzJK4MaZEA/YNV3jT8u8Bg==",
++      "license": "ISC",
++      "optional": true
++    },
++    "node_modules/lzo-wasm": {
++      "version": "0.0.4",
++      "resolved": "https://registry.npmjs.org/lzo-wasm/-/lzo-wasm-0.0.4.tgz",
++      "integrity": "sha512-VKlnoJRFrB8SdJhlVKvW5vI1gGwcZ+mvChEXcSX6r2xDNc/Q2FD9esfBmGCuPZdrJ1feO+YcVFd2PTk0c137Gw==",
++      "license": "BSD-2-Clause"
++    },
+     "node_modules/magic-string": {
+       "version": "0.30.21",
+       "resolved": "https://registry.npmjs.org/magic-string/-/magic-string-0.30.21.tgz",
+@@ -5079,6 +6262,90 @@
+         "@jridgewell/sourcemap-codec": "^1.5.5"
+       }
+     },
++    "node_modules/mapbox-gl": {
++      "version": "3.20.0",
++      "resolved": "https://registry.npmjs.org/mapbox-gl/-/mapbox-gl-3.20.0.tgz",
++      "integrity": "sha512-+rVQkf6ymUlAEJiQBZy0OiamJvQN4Uk15mRHI98PRUSmRS40GOoLJyEZEG39LEUtvmzc7qGh+4ygZfJ//O5VnQ==",
++      "license": "SEE LICENSE IN LICENSE.txt",
++      "workspaces": [
++        "src/style-spec",
++        "test/build/vite",
++        "test/build/webpack",
++        "test/build/typings"
++      ],
++      "dependencies": {
++        "@mapbox/jsonlint-lines-primitives": "^2.0.2",
++        "@mapbox/mapbox-gl-supported": "^3.0.0",
++        "@mapbox/point-geometry": "^1.1.0",
++        "@mapbox/tiny-sdf": "^2.0.6",
++        "@mapbox/unitbezier": "^0.0.1",
++        "@mapbox/vector-tile": "^2.0.4",
++        "@types/geojson": "^7946.0.16",
++        "@types/geojson-vt": "^3.2.5",
++        "@types/pbf": "^3.0.5",
++        "@types/supercluster": "^7.1.3",
++        "cheap-ruler": "^4.0.0",
++        "csscolorparser": "~1.0.3",
++        "earcut": "^3.0.1",
++        "geojson-vt": "^4.0.2",
++        "gl-matrix": "^3.4.4",
++        "grid-index": "^1.1.0",
++        "kdbush": "^4.0.2",
++        "martinez-polygon-clipping": "^0.8.1",
++        "murmurhash-js": "^1.0.0",
++        "pbf": "^4.0.1",
++        "potpack": "^2.0.0",
++        "quickselect": "^3.0.0",
++        "supercluster": "^8.0.1",
++        "tinyqueue": "^3.0.0"
++      }
++    },
++    "node_modules/mapbox-gl/node_modules/@mapbox/point-geometry": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/@mapbox/point-geometry/-/point-geometry-1.1.0.tgz",
++      "integrity": "sha512-YGcBz1cg4ATXDCM/71L9xveh4dynfGmcLDqufR+nQQy3fKwsAZsWd/x4621/6uJaeB9mwOHE6hPeDgXz9uViUQ==",
++      "license": "ISC"
++    },
++    "node_modules/mapbox-gl/node_modules/@mapbox/vector-tile": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/@mapbox/vector-tile/-/vector-tile-2.0.4.tgz",
++      "integrity": "sha512-AkOLcbgGTdXScosBWwmmD7cDlvOjkg/DetGva26pIRiZPdeJYjYKarIlb4uxVzi6bwHO6EWH82eZ5Nuv4T5DUg==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "@mapbox/point-geometry": "~1.1.0",
++        "@types/geojson": "^7946.0.16",
++        "pbf": "^4.0.1"
++      }
++    },
++    "node_modules/mapbox-gl/node_modules/earcut": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/earcut/-/earcut-3.0.2.tgz",
++      "integrity": "sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==",
++      "license": "ISC"
++    },
++    "node_modules/mapbox-gl/node_modules/pbf": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/pbf/-/pbf-4.0.1.tgz",
++      "integrity": "sha512-SuLdBvS42z33m8ejRbInMapQe8n0D3vN/Xd5fmWM3tufNgRQFBpaW2YVJxQZV4iPNqb0vEFvssMEo5w9c6BTIA==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "resolve-protobuf-schema": "^2.1.0"
++      },
++      "bin": {
++        "pbf": "bin/pbf"
++      }
++    },
++    "node_modules/martinez-polygon-clipping": {
++      "version": "0.8.1",
++      "resolved": "https://registry.npmjs.org/martinez-polygon-clipping/-/martinez-polygon-clipping-0.8.1.tgz",
++      "integrity": "sha512-9PLLMzMPI6ihHox4Ns6LpVBLpRc7sbhULybZ/wyaY8sY3ECNe2+hxm1hA2/9bEEpRrdpjoeduBuZLg2aq1cSIQ==",
++      "license": "MIT",
++      "dependencies": {
++        "robust-predicates": "^2.0.4",
++        "splaytree": "^0.1.4",
++        "tinyqueue": "3.0.0"
++      }
++    },
+     "node_modules/math-intrinsics": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/math-intrinsics/-/math-intrinsics-1.1.0.tgz",
+@@ -5089,6 +6356,17 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/md5": {
++      "version": "2.3.0",
++      "resolved": "https://registry.npmjs.org/md5/-/md5-2.3.0.tgz",
++      "integrity": "sha512-T1GITYmFaKuO91vxyoQMFETst+O71VUPEU3ze5GNzDm0OWdP8v1ziTaAEPUr/3kLsY3Sftgz242A1SetQiDL7g==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "charenc": "0.0.2",
++        "crypt": "0.0.2",
++        "is-buffer": "~1.1.6"
++      }
++    },
+     "node_modules/merge2": {
+       "version": "1.4.1",
+       "resolved": "https://registry.npmjs.org/merge2/-/merge2-1.4.1.tgz",
+@@ -5130,18 +6408,30 @@
+       "version": "1.2.8",
+       "resolved": "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz",
+       "integrity": "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==",
+-      "dev": true,
+       "license": "MIT",
+       "funding": {
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/mjolnir.js": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/mjolnir.js/-/mjolnir.js-3.0.0.tgz",
++      "integrity": "sha512-siX3YCG7N2HnmN1xMH3cK4JkUZJhbkhRFJL+G5N1vH0mh1t5088rJknIoqDFWDIU6NPGvRRgLnYW3ZHjSMEBLA==",
++      "license": "MIT",
++      "peer": true
++    },
+     "node_modules/ms": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
+       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==",
+       "license": "MIT"
+     },
++    "node_modules/murmurhash-js": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/murmurhash-js/-/murmurhash-js-1.0.0.tgz",
++      "integrity": "sha512-TvmkNhkv8yct0SVBSy+o8wYzXjE4Zz3PCesbfs8HiCXXdcTuocApFv11UWlNFWKYsP2okqrhb7JNlSm9InBhIw==",
++      "license": "MIT"
++    },
+     "node_modules/nanoid": {
+       "version": "3.3.11",
+       "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz",
+@@ -5481,6 +6771,12 @@
+         "url": "https://github.com/sponsors/sindresorhus"
+       }
+     },
++    "node_modules/pako": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/pako/-/pako-1.0.11.tgz",
++      "integrity": "sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==",
++      "license": "(MIT AND Zlib)"
++    },
+     "node_modules/parent-module": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/parent-module/-/parent-module-1.0.1.tgz",
+@@ -5521,6 +6817,19 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/pbf": {
++      "version": "3.3.0",
++      "resolved": "https://registry.npmjs.org/pbf/-/pbf-3.3.0.tgz",
++      "integrity": "sha512-XDF38WCH3z5OV/OVa8GKUNtLAyneuzbCisx7QUCF8Q6Nutx0WnJrQe5O+kOtBlLfRNUws98Y58Lblp+NJG5T4Q==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "ieee754": "^1.1.12",
++        "resolve-protobuf-schema": "^2.1.0"
++      },
++      "bin": {
++        "pbf": "bin/pbf"
++      }
++    },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+@@ -5579,6 +6888,23 @@
+         "node": "^10 || ^12 || >=14"
+       }
+     },
++    "node_modules/potpack": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/potpack/-/potpack-2.1.0.tgz",
++      "integrity": "sha512-pcaShQc1Shq0y+E7GqJqvZj8DTthWV1KeHGdi0Z6IAin2Oi3JnLCOfwnCo84qc+HAp52wT9nK9H7FAJp5a44GQ==",
++      "license": "ISC"
++    },
++    "node_modules/preact": {
++      "version": "10.29.0",
++      "resolved": "https://registry.npmjs.org/preact/-/preact-10.29.0.tgz",
++      "integrity": "sha512-wSAGyk2bYR1c7t3SZ3jHcM6xy0lcBcDel6lODcs9ME6Th++Dx2KU+6D3HD8wMMKGA8Wpw7OMd3/4RGzYRpzwRg==",
++      "license": "MIT",
++      "peer": true,
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/preact"
++      }
++    },
+     "node_modules/prelude-ls": {
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/prelude-ls/-/prelude-ls-1.2.1.tgz",
+@@ -5589,6 +6915,12 @@
+         "node": ">= 0.8.0"
+       }
+     },
++    "node_modules/process-nextick-args": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz",
++      "integrity": "sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==",
++      "license": "MIT"
++    },
+     "node_modules/prop-types": {
+       "version": "15.8.1",
+       "resolved": "https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz",
+@@ -5601,6 +6933,12 @@
+         "react-is": "^16.13.1"
+       }
+     },
++    "node_modules/protocol-buffers-schema": {
++      "version": "3.6.0",
++      "resolved": "https://registry.npmjs.org/protocol-buffers-schema/-/protocol-buffers-schema-3.6.0.tgz",
++      "integrity": "sha512-TdDRD+/QNdrCGCE7v8340QyuXd4kIWIgapsE2+n/SaGiSSbomYl4TjHlvIoCWRpE7wFt02EpB35VVA2ImcBVqw==",
++      "license": "MIT"
++    },
+     "node_modules/punycode": {
+       "version": "2.3.1",
+       "resolved": "https://registry.npmjs.org/punycode/-/punycode-2.3.1.tgz",
+@@ -5632,6 +6970,12 @@
+       ],
+       "license": "MIT"
+     },
++    "node_modules/quickselect": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/quickselect/-/quickselect-3.0.0.tgz",
++      "integrity": "sha512-XdjUArbK4Bm5fLLvlm5KpTFOiOThgfWWI4axAZDWg4E/0mKdZyI9tNEfds27qCi1ze/vwTR16kvmmGhRra3c2g==",
++      "license": "ISC"
++    },
+     "node_modules/react": {
+       "version": "19.2.4",
+       "resolved": "https://registry.npmjs.org/react/-/react-19.2.4.tgz",
+@@ -5660,20 +7004,51 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/react-leaflet": {
+-      "version": "5.0.0",
+-      "resolved": "https://registry.npmjs.org/react-leaflet/-/react-leaflet-5.0.0.tgz",
+-      "integrity": "sha512-CWbTpr5vcHw5bt9i4zSlPEVQdTVcML390TjeDG0cK59z1ylexpqC6M1PJFjV8jD7CF+ACBFsLIDs6DRMoLEofw==",
+-      "license": "Hippocratic-2.1",
++    "node_modules/react-map-gl": {
++      "version": "8.1.0",
++      "resolved": "https://registry.npmjs.org/react-map-gl/-/react-map-gl-8.1.0.tgz",
++      "integrity": "sha512-vDx/QXR3Tb+8/ap/z6gdMjJQ8ZEyaZf6+uMSPz7jhWF5VZeIsKsGfPvwHVPPwGF43Ryn+YR4bd09uEFNR5OPdg==",
++      "license": "MIT",
+       "dependencies": {
+-        "@react-leaflet/core": "^3.0.0"
++        "@vis.gl/react-mapbox": "8.1.0",
++        "@vis.gl/react-maplibre": "8.1.0"
+       },
+       "peerDependencies": {
+-        "leaflet": "^1.9.0",
+-        "react": "^19.0.0",
+-        "react-dom": "^19.0.0"
++        "mapbox-gl": ">=1.13.0",
++        "maplibre-gl": ">=1.13.0",
++        "react": ">=16.3.0",
++        "react-dom": ">=16.3.0"
++      },
++      "peerDependenciesMeta": {
++        "mapbox-gl": {
++          "optional": true
++        },
++        "maplibre-gl": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/readable-stream": {
++      "version": "2.3.8",
++      "resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz",
++      "integrity": "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==",
++      "license": "MIT",
++      "dependencies": {
++        "core-util-is": "~1.0.0",
++        "inherits": "~2.0.3",
++        "isarray": "~1.0.0",
++        "process-nextick-args": "~2.0.0",
++        "safe-buffer": "~5.1.1",
++        "string_decoder": "~1.1.1",
++        "util-deprecate": "~1.0.1"
+       }
+     },
++    "node_modules/readable-stream/node_modules/isarray": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz",
++      "integrity": "sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==",
++      "license": "MIT"
++    },
+     "node_modules/reflect.getprototypeof": {
+       "version": "1.0.10",
+       "resolved": "https://registry.npmjs.org/reflect.getprototypeof/-/reflect.getprototypeof-1.0.10.tgz",
+@@ -5759,6 +7134,15 @@
+         "url": "https://github.com/privatenumber/resolve-pkg-maps?sponsor=1"
+       }
+     },
++    "node_modules/resolve-protobuf-schema": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/resolve-protobuf-schema/-/resolve-protobuf-schema-2.1.0.tgz",
++      "integrity": "sha512-kI5ffTiZWmJaS/huM8wZfEMer1eRd7oJQhDuxeCLe3t7N7mX3z94CN0xPxBQxFYQTSNz9T0i+v6inKqSdK8xrQ==",
++      "license": "MIT",
++      "dependencies": {
++        "protocol-buffers-schema": "^3.3.1"
++      }
++    },
+     "node_modules/reusify": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/reusify/-/reusify-1.1.0.tgz",
+@@ -5770,6 +7154,12 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/robust-predicates": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/robust-predicates/-/robust-predicates-2.0.4.tgz",
++      "integrity": "sha512-l4NwboJM74Ilm4VKfbAtFeGq7aEjWL+5kVFcmgFA2MrdnQWx9iE/tUGvxY5HyMI7o/WpSIUFLbC5fbeaHgSCYg==",
++      "license": "Unlicense"
++    },
+     "node_modules/run-parallel": {
+       "version": "1.2.0",
+       "resolved": "https://registry.npmjs.org/run-parallel/-/run-parallel-1.2.0.tgz",
+@@ -5794,6 +7184,12 @@
+         "queue-microtask": "^1.2.2"
+       }
+     },
++    "node_modules/rw": {
++      "version": "1.3.3",
++      "resolved": "https://registry.npmjs.org/rw/-/rw-1.3.3.tgz",
++      "integrity": "sha512-PdhdWy89SiZogBLaw42zdeqtRJ//zFd2PgQavcICDUgJT5oW10QCRKbJ6bg4r0/UY2M6BWd5tkxuGFRvCkgfHQ==",
++      "license": "BSD-3-Clause"
++    },
+     "node_modules/safe-array-concat": {
+       "version": "1.1.3",
+       "resolved": "https://registry.npmjs.org/safe-array-concat/-/safe-array-concat-1.1.3.tgz",
+@@ -5814,6 +7210,12 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/safe-buffer": {
++      "version": "5.1.2",
++      "resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz",
++      "integrity": "sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==",
++      "license": "MIT"
++    },
+     "node_modules/safe-push-apply": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/safe-push-apply/-/safe-push-apply-1.0.0.tgz",
+@@ -5914,6 +7316,27 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/set-value": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/set-value/-/set-value-2.0.1.tgz",
++      "integrity": "sha512-JxHc1weCN68wRY0fhCoXpyK55m/XPHafOmK4UWD7m2CI14GMcFypt4w/0+NV5f/ZMby2F6S2wwA7fgynh9gWSw==",
++      "license": "MIT",
++      "dependencies": {
++        "extend-shallow": "^2.0.1",
++        "is-extendable": "^0.1.1",
++        "is-plain-object": "^2.0.3",
++        "split-string": "^3.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/setimmediate": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmjs.org/setimmediate/-/setimmediate-1.0.5.tgz",
++      "integrity": "sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA==",
++      "license": "MIT"
++    },
+     "node_modules/sharp": {
+       "version": "0.34.5",
+       "resolved": "https://registry.npmjs.org/sharp/-/sharp-0.34.5.tgz",
+@@ -6071,6 +7494,12 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/snappyjs": {
++      "version": "0.6.1",
++      "resolved": "https://registry.npmjs.org/snappyjs/-/snappyjs-0.6.1.tgz",
++      "integrity": "sha512-YIK6I2lsH072UE0aOFxxY1dPDCS43I5ktqHpeAsuLNYWkE5pGxRGWfDM4/vSUfNzXjC1Ivzt3qx31PCLmc9yqg==",
++      "license": "MIT"
++    },
+     "node_modules/socket.io-client": {
+       "version": "4.8.3",
+       "resolved": "https://registry.npmjs.org/socket.io-client/-/socket.io-client-4.8.3.tgz",
+@@ -6099,6 +7528,41 @@
+         "node": ">=10.0.0"
+       }
+     },
++    "node_modules/sort-asc": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/sort-asc/-/sort-asc-0.2.0.tgz",
++      "integrity": "sha512-umMGhjPeHAI6YjABoSTrFp2zaBtXBej1a0yKkuMUyjjqu6FJsTF+JYwCswWDg+zJfk/5npWUUbd33HH/WLzpaA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/sort-desc": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/sort-desc/-/sort-desc-0.2.0.tgz",
++      "integrity": "sha512-NqZqyvL4VPW+RAxxXnB8gvE1kyikh8+pR+T+CXLksVRN9eiQqkQlPwqWYU0mF9Jm7UnctShlxLyAt1CaBOTL1w==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/sort-object": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/sort-object/-/sort-object-3.0.3.tgz",
++      "integrity": "sha512-nK7WOY8jik6zaG9CRwZTaD5O7ETWDLZYMM12pqY8htll+7dYeqGfEUPcUBHOpSJg2vJOrvFIY2Dl5cX2ih1hAQ==",
++      "license": "MIT",
++      "dependencies": {
++        "bytewise": "^1.1.0",
++        "get-value": "^2.0.2",
++        "is-extendable": "^0.1.1",
++        "sort-asc": "^0.2.0",
++        "sort-desc": "^0.2.0",
++        "union-value": "^1.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/source-map-js": {
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz",
+@@ -6108,6 +7572,55 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/splaytree": {
++      "version": "0.1.4",
++      "resolved": "https://registry.npmjs.org/splaytree/-/splaytree-0.1.4.tgz",
++      "integrity": "sha512-D50hKrjZgBzqD3FT2Ek53f2dcDLAQT8SSGrzj3vidNH5ISRgceeGVJ2dQIthKOuayqFXfFjXheHNo4bbt9LhRQ==",
++      "license": "MIT"
++    },
++    "node_modules/split-string": {
++      "version": "3.1.0",
++      "resolved": "https://registry.npmjs.org/split-string/-/split-string-3.1.0.tgz",
++      "integrity": "sha512-NzNVhJDYpwceVVii8/Hu6DKfD2G+NrQHlS/V/qgv763EYudVwEcMQNxd2lh+0VrUByXN/oJkl5grOhYWvQUYiw==",
++      "license": "MIT",
++      "dependencies": {
++        "extend-shallow": "^3.0.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/split-string/node_modules/extend-shallow": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/extend-shallow/-/extend-shallow-3.0.2.tgz",
++      "integrity": "sha512-BwY5b5Ql4+qZoefgMj2NUmx+tehVTH/Kf4k1ZEtOHNFcm2wSxMRo992l6X3TIgni2eZVTZ85xMOjF31fwZAj6Q==",
++      "license": "MIT",
++      "dependencies": {
++        "assign-symbols": "^1.0.0",
++        "is-extendable": "^1.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/split-string/node_modules/is-extendable": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/is-extendable/-/is-extendable-1.0.1.tgz",
++      "integrity": "sha512-arnXMxT1hhoKo9k1LZdmlNyJdDDfy2v0fXjFlmok4+i8ul/6WlbVge9bhM74OpNPQPMGUToDtz+KXa1PneJxOA==",
++      "license": "MIT",
++      "dependencies": {
++        "is-plain-object": "^2.0.4"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/sprintf-js": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.3.tgz",
++      "integrity": "sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==",
++      "license": "BSD-3-Clause"
++    },
+     "node_modules/stable-hash": {
+       "version": "0.0.5",
+       "resolved": "https://registry.npmjs.org/stable-hash/-/stable-hash-0.0.5.tgz",
+@@ -6129,6 +7642,15 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/string_decoder": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz",
++      "integrity": "sha512-n/ShnvDi6FHbbVfviro+WojiFzv+s8MPMHBczVePfUpDJLwoLT0ht1l4YwBCbi8pJAveEEdnkHyPyTP/mzRfwg==",
++      "license": "MIT",
++      "dependencies": {
++        "safe-buffer": "~5.1.0"
++      }
++    },
+     "node_modules/string.prototype.includes": {
+       "version": "2.0.1",
+       "resolved": "https://registry.npmjs.org/string.prototype.includes/-/string.prototype.includes-2.0.1.tgz",
+@@ -6265,6 +7787,18 @@
+         "url": "https://github.com/sponsors/sindresorhus"
+       }
+     },
++    "node_modules/strnum": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/strnum/-/strnum-1.1.2.tgz",
++      "integrity": "sha512-vrN+B7DBIoTTZjnPNewwhx6cBA/H+IS7rfW68n7XxC1y7uoiGQBxaKzqucGUgavX15dJgiGztLJ8vxuEzwqBdA==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/NaturalIntelligence"
++        }
++      ],
++      "license": "MIT"
++    },
+     "node_modules/styled-jsx": {
+       "version": "5.1.6",
+       "resolved": "https://registry.npmjs.org/styled-jsx/-/styled-jsx-5.1.6.tgz",
+@@ -6288,6 +7822,15 @@
+         }
+       }
+     },
++    "node_modules/supercluster": {
++      "version": "8.0.1",
++      "resolved": "https://registry.npmjs.org/supercluster/-/supercluster-8.0.1.tgz",
++      "integrity": "sha512-IiOea5kJ9iqzD2t7QJq/cREyLHTtSmUT6gQsweojg9WH2sYJqZK9SswTu6jrscO6D1G5v5vYZ9ru/eq85lXeZQ==",
++      "license": "ISC",
++      "dependencies": {
++        "kdbush": "^4.0.2"
++      }
++    },
+     "node_modules/supports-color": {
+       "version": "7.2.0",
+       "resolved": "https://registry.npmjs.org/supports-color/-/supports-color-7.2.0.tgz",
+@@ -6345,6 +7888,28 @@
+         "url": "https://opencollective.com/webpack"
+       }
+     },
++    "node_modules/texture-compressor": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/texture-compressor/-/texture-compressor-1.0.2.tgz",
++      "integrity": "sha512-dStVgoaQ11mA5htJ+RzZ51ZxIZqNOgWKAIvtjLrW1AliQQLCmrDqNzQZ8Jh91YealQ95DXt4MEduLzJmbs6lig==",
++      "license": "MIT",
++      "dependencies": {
++        "argparse": "^1.0.10",
++        "image-size": "^0.7.4"
++      },
++      "bin": {
++        "texture-compressor": "bin/texture-compressor.js"
++      }
++    },
++    "node_modules/texture-compressor/node_modules/argparse": {
++      "version": "1.0.10",
++      "resolved": "https://registry.npmjs.org/argparse/-/argparse-1.0.10.tgz",
++      "integrity": "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==",
++      "license": "MIT",
++      "dependencies": {
++        "sprintf-js": "~1.0.2"
++      }
++    },
+     "node_modules/tinyglobby": {
+       "version": "0.2.15",
+       "resolved": "https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.15.tgz",
+@@ -6393,6 +7958,12 @@
+         "url": "https://github.com/sponsors/jonschlinkert"
+       }
+     },
++    "node_modules/tinyqueue": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/tinyqueue/-/tinyqueue-3.0.0.tgz",
++      "integrity": "sha512-gRa9gwYU3ECmQYv3lslts5hxuIa90veaEcxDYuu3QGOIAEM2mOZkVHp48ANJuu1CURtRdHKUBY5Lm1tHV+sD4g==",
++      "license": "ISC"
++    },
+     "node_modules/to-regex-range": {
+       "version": "5.0.1",
+       "resolved": "https://registry.npmjs.org/to-regex-range/-/to-regex-range-5.0.1.tgz",
+@@ -6580,6 +8151,21 @@
+         "typescript": ">=4.8.4 <6.0.0"
+       }
+     },
++    "node_modules/typewise": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/typewise/-/typewise-1.0.3.tgz",
++      "integrity": "sha512-aXofE06xGhaQSPzt8hlTY+/YWQhm9P0jYUp1f2XtmW/3Bk0qzXcyFWAtPoo2uTGQj1ZwbDuSyuxicq+aDo8lCQ==",
++      "license": "MIT",
++      "dependencies": {
++        "typewise-core": "^1.2.0"
++      }
++    },
++    "node_modules/typewise-core": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/typewise-core/-/typewise-core-1.2.0.tgz",
++      "integrity": "sha512-2SCC/WLzj2SbUwzFOzqMCkz5amXLlxtJqDKTICqg30x+2DZxcfZN2MvQZmGfXWKNWaKK9pBPsvkcwv8bF/gxKg==",
++      "license": "MIT"
++    },
+     "node_modules/unbox-primitive": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/unbox-primitive/-/unbox-primitive-1.1.0.tgz",
+@@ -6605,6 +8191,21 @@
+       "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==",
+       "license": "MIT"
+     },
++    "node_modules/union-value": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/union-value/-/union-value-1.0.1.tgz",
++      "integrity": "sha512-tJfXmxMeWYnczCVs7XAEvIV7ieppALdyepWMkHkwciRpZraG/xwT+s2JN8+pr1+8jCRf80FFzvr+MpQeeoF4Xg==",
++      "license": "MIT",
++      "dependencies": {
++        "arr-union": "^3.1.0",
++        "get-value": "^2.0.6",
++        "is-extendable": "^0.1.1",
++        "set-value": "^2.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/unrs-resolver": {
+       "version": "1.11.1",
+       "resolved": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.11.1.tgz",
+@@ -6681,6 +8282,18 @@
+         "punycode": "^2.1.0"
+       }
+     },
++    "node_modules/util-deprecate": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz",
++      "integrity": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==",
++      "license": "MIT"
++    },
++    "node_modules/wgsl_reflect": {
++      "version": "1.2.3",
++      "resolved": "https://registry.npmjs.org/wgsl_reflect/-/wgsl_reflect-1.2.3.tgz",
++      "integrity": "sha512-BQWBIsOn411M+ffBxmA6QRLvAOVbuz3Uk4NusxnqC1H7aeQcVLhdA3k2k/EFFFtqVjhz3z7JOOZF1a9hj2tv4Q==",
++      "license": "MIT"
++    },
+     "node_modules/which": {
+       "version": "2.0.2",
+       "resolved": "https://registry.npmjs.org/which/-/which-2.0.2.tgz",
+@@ -6868,6 +8481,13 @@
+         "zod": "^3.25.0 || ^4.0.0"
+       }
+     },
++    "node_modules/zstd-codec": {
++      "version": "0.1.5",
++      "resolved": "https://registry.npmjs.org/zstd-codec/-/zstd-codec-0.1.5.tgz",
++      "integrity": "sha512-v3fyjpK8S/dpY/X5WxqTK3IoCnp/ZOLxn144GZVlNUjtwAchzrVo03h+oMATFhCIiJ5KTr4V3vDQQYz4RU684g==",
++      "license": "MIT",
++      "optional": true
++    },
+     "node_modules/zustand": {
+       "version": "5.0.12",
+       "resolved": "https://registry.npmjs.org/zustand/-/zustand-5.0.12.tgz",
+diff --git a/frontend/package.json b/frontend/package.json
+index 43be94f..9f63fa4 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -9,16 +9,18 @@
+     "lint": "eslint"
+   },
+   "dependencies": {
++    "@deck.gl/geo-layers": "^9.2.11",
++    "@deck.gl/layers": "^9.2.11",
++    "@deck.gl/react": "^9.2.11",
+     "@supabase/supabase-js": "^2.99.3",
+-    "@types/leaflet": "^1.9.21",
+     "clsx": "^2.1.1",
+     "date-fns": "^4.1.0",
+-    "leaflet": "^1.9.4",
+     "lucide-react": "^0.577.0",
++    "mapbox-gl": "^3.20.0",
+     "next": "16.2.1",
+     "react": "19.2.4",
+     "react-dom": "19.2.4",
+-    "react-leaflet": "^5.0.0",
++    "react-map-gl": "^8.1.0",
+     "socket.io-client": "^4.8.3",
+     "tailwind-merge": "^3.5.0",
+     "zustand": "^5.0.12"

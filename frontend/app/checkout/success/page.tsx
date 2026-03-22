@@ -1,8 +1,9 @@
 'use client'
 import { useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -70,5 +71,13 @@ export default function CheckoutSuccessPage() {
         `}</style>
       </div>
     </div>
+  )
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#080e1a' }}></div>}>
+      <CheckoutSuccessContent />
+    </Suspense>
   )
 }

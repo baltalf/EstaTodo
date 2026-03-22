@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     # Suscripciones en L1
     subscription_contract_address: str = ""
 
+    # Mapbox
+    next_public_mapbox_token: str = ""
+
     class Config:
         env_file = ".env"
 

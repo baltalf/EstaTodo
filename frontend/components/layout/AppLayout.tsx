@@ -9,7 +9,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   // Dashboard routes that require Sidebar and TopBar
-  const dashboardRoutes = ['/live-map', '/fleet', '/dispatch', '/stock', '/events', '/demo'];
+  const dashboardRoutes = ['/live-map', '/fleet', '/dispatch', '/stock', '/events'];
   const isDashboard = dashboardRoutes.some(route => pathname?.startsWith(route) || pathname === route);
 
   if (!isDashboard) {

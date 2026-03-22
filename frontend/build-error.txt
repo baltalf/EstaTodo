@@ -1,0 +1,32 @@
+
+> temp_frontend@0.1.0 build
+> next build
+
+ÔÜá `images.domains` is deprecated in favor of `images.remotePatterns`. Please update next.config.mjs to protect your application from malicious users.
+ÔÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\BALTAZAR\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\BALTAZAR\safeguard\frontend\package-lock.json
+
+Ôû▓ Next.js 16.2.1 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 5.6s
+  Running TypeScript ...
+Failed to type check.
+
+./components/map/LiveMapDeckGL.tsx:175:11
+Type error: Type '{ mapboxAccessToken: string | undefined; mapStyle: string; style: { width: string; height: string; }; reuseMaps: true; optimizeForTerrain: boolean; onLoad: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & MapInitOptions & Partial<ViewState> & MapCallbacks & { mapboxAccessToken?: string | undefined; ... 10 more ...; cursor?: string | undefined; } & GlobalSettings & { ...; } & RefAttributes<...>'.
+  Property 'optimizeForTerrain' does not exist on type 'IntrinsicAttributes & MapInitOptions & Partial<ViewState> & MapCallbacks & { mapboxAccessToken?: string | undefined; ... 10 more ...; cursor?: string | undefined; } & GlobalSettings & { ...; } & RefAttributes<...>'.
+
+  173 |           style={{ width: '100%', height: '100%' }}
+  174 |           reuseMaps={true}
+> 175 |           optimizeForTerrain={false}
+      |           ^
+  176 |           onLoad={(e: any) => {
+  177 |             try {
+  178 |               const map = e.target
+Next.js build worker exited with code: 1 and signal: null

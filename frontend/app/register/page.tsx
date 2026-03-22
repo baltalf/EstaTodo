@@ -284,8 +284,8 @@ export default function RegisterPage() {
               }}>
                 {status.msg}
                 {status.type === 'error' && status.msg.includes('iniciar sesión') && (
-                  <Link href="/login" style={{ color: '#06B6D4', marginLeft: 6, textDecoration: 'underline' }}>
-                    Iniciar sesión
+                  <Link href="/live-map" style={{ color: '#06B6D4', marginLeft: 6, textDecoration: 'underline' }}>
+                    Ir al dashboard
                   </Link>
                 )}
               </div>
@@ -328,7 +328,7 @@ export default function RegisterPage() {
 
             <p style={{ textAlign: 'center', fontSize: 13, color: '#64748B', margin: 0 }}>
               ¿Ya tenés cuenta?{' '}
-              <Link href="/demo" style={{ color: '#06B6D4', textDecoration: 'none' }}>
+              <Link href="/live-map" style={{ color: '#06B6D4', textDecoration: 'none' }}>
                 Ir al dashboard
               </Link>
             </p>

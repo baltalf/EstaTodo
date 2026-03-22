@@ -209,18 +209,6 @@ export default function LandingPage() {
               onMouseEnter={e => (e.currentTarget.style.background = '#1D4ED8')}
               onMouseLeave={e => (e.currentTarget.style.background = '#2563EB')}
             >Comenzar gratis →</Link>
-            <Link href="/demo" style={{
-              display: 'inline-block',
-              padding: '14px 32px',
-              background: 'transparent',
-              color: '#06B6D4',
-              fontWeight: 600,
-              fontSize: 16,
-              borderRadius: 8,
-              border: '1px solid #06B6D4',
-              textDecoration: 'none',
-              transition: 'all 0.2s',
-            }}>Ver demo en vivo</Link>
           </div>
         </div>
 
@@ -417,7 +405,7 @@ export default function LandingPage() {
             <span>Construido en Argentina 🇦🇷</span>
           </div>
           <div style={{ display: 'flex', gap: 24 }}>
-            {[{ label: 'Demo', href: '/demo' }, { label: 'Documentación', href: '#' }, { label: 'Contacto', href: '#' }].map(({ label, href }) => (
+            {[{ label: 'Documentación', href: '#' }, { label: 'Contacto', href: '#' }].map(({ label, href }) => (
               <Link key={label} href={href} style={{ color: '#94A3B8', fontSize: 14, textDecoration: 'none' }}>{label}</Link>
             ))}
           </div>
